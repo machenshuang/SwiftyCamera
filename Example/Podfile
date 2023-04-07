@@ -1,0 +1,13 @@
+use_frameworks!
+
+platform :ios, '10.0'
+
+target 'SwiftyCamera_Example' do
+  pod 'SwiftyCamera', :path => '../'
+
+  target 'SwiftyCamera_Tests' do
+    inherit! :search_paths
+
+    
+  end
+end

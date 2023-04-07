@@ -1,0 +1,16 @@
+PODS:
+  - SwiftyCamera (1.0.0)
+
+DEPENDENCIES:
+  - SwiftyCamera (from `../`)
+
+EXTERNAL SOURCES:
+  SwiftyCamera:
+    :path: "../"
+
+SPEC CHECKSUMS:
+  SwiftyCamera: 391a33c96a26637a8533be2cc4a7a1288907eb8a
+
+PODFILE CHECKSUM: bd212813d2389f147504766b36d7e726738d7734
+
+COCOAPODS: 1.11.3
