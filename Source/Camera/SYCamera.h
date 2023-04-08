@@ -39,6 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL enableOfZoomAnimation;
 @property (nonatomic, assign) CGFloat ev;
 @property (nonatomic, assign, readonly) AVCaptureDevicePosition cameraPosition;
+@property (nonatomic, assign, readonly) AVCaptureSession *session;
 
 @property (nonatomic, weak) id<SYCameraDelegate> delegate;
 

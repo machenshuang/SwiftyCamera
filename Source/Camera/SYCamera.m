@@ -21,7 +21,6 @@ typedef struct SYCameraDelegateCache {
 
 @interface SYCamera () <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate>
 {
-    AVCaptureSession *_session;
     AVCaptureDevice *_inputCamera;
     AVCaptureDeviceInput *_videoInput;
     AVCaptureVideoDataOutput *_videoOutput;
@@ -40,6 +39,7 @@ typedef struct SYCameraDelegateCache {
 
 @implementation SYCamera
 
+@synthesize session = _session;
 @synthesize cameraPosition = _cameraPosition;
 
 - (instancetype)init
