@@ -15,9 +15,8 @@ NS_ASSUME_NONNULL_BEGIN
 @required
 - (void)cameraDidStarted:(NSError *_Nullable)error;
 - (void)cameraDidStoped:(NSError *_Nullable)error;
-- (void)cameraCapturePixelBuffer:(CVPixelBufferRef _Nullable)pixelBuffer
-                              withMetaData:(NSDictionary *_Nullable)metaData
-                                     error:(NSError *_Nullable)error;
+- (void)cameraCapturePhotoOutput:(AVCapturePhoto * _Nullable)photo error:(NSError *_Nullable)error;
+
 @optional
 - (void)cameraDisplaySampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
 - (void)cameraDidChangedPosition:(BOOL)backFacing error:(NSError *_Nullable)error;

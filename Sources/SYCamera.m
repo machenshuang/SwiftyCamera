@@ -9,7 +9,7 @@
 
 typedef struct SYCameraDelegateCache {
     unsigned int diplayOutputSampleBuffer : 1;
-    unsigned int captureOutputPixelBuffer : 1;
+    unsigned int cameraCapturePhotoOutput : 1;
     unsigned int changedPosition : 1;
     unsigned int changedFocus : 1;
     unsigned int changedZoom : 1;
@@ -96,7 +96,7 @@ typedef struct SYCameraDelegateCache {
 {
     _delegate = delegate;
     _delegateCache.diplayOutputSampleBuffer = [delegate respondsToSelector:@selector(cameraDisplaySampleBuffer:)];
-    _delegateCache.captureOutputPixelBuffer = [delegate respondsToSelector:@selector(cameraCapturePixelBuffer:withMetaData:error:)];
+    _delegateCache.cameraCapturePhotoOutput = [delegate respondsToSelector:@selector(cameraCapturePhotoOutput:error:)];
     _delegateCache.changedPosition = [delegate respondsToSelector:@selector(cameraDidChangedPosition:error:)];
     _delegateCache.changedFocus = [delegate respondsToSelector:@selector(cameraDidChangedFocus:mode:error:)];
     _delegateCache.changedZoom = [delegate respondsToSelector:@selector(cameraDidChangedZoom:error:)];
@@ -403,13 +403,12 @@ typedef struct SYCameraDelegateCache {
 - (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
 {
     if (error != nil) {
-        if (_delegateCache.captureOutputPixelBuffer) {
-            [_delegate cameraCapturePixelBuffer:NULL withMetaData:NULL error:error];
+        if (_delegateCache.cameraCapturePhotoOutput) {
+            [_delegate cameraCapturePhotoOutput:nil error:error];
         }
         return;
     }
-    [_delegate cameraCapturePixelBuffer:photo.pixelBuffer withMetaData:photo.metadata error:nil];
-    CVPixelBufferRef pixelBuffer = photo.pixelBuffer;
+    [_delegate cameraCapturePhotoOutput:photo error:error];
 }
 
 - (void)captureOutput:(AVCapturePhotoOutput *)output willCapturePhotoForResolvedSettings:(AVCaptureResolvedPhotoSettings *)resolvedSettings
