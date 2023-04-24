@@ -44,7 +44,7 @@ typedef struct SYCameraDelegateCache {
 
 - (instancetype)init
 {
-    self = [self initWithSessionPreset:AVCaptureSessionPreset640x480 cameraPosition:AVCaptureDevicePositionBack];
+    self = [self initWithSessionPreset:AVCaptureSessionPresetPhoto cameraPosition:AVCaptureDevicePositionBack];
     return self;
 }
 
