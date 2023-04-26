@@ -41,6 +41,7 @@ typedef struct SYCameraDelegateCache {
 
 @synthesize session = _session;
 @synthesize cameraPosition = _cameraPosition;
+@synthesize flashMode = _flashMode;
 
 - (instancetype)init
 {
@@ -82,6 +83,7 @@ typedef struct SYCameraDelegateCache {
                                                  selector:@selector(handleCaptureSessionNotification:)
                                                      name:nil
                                                    object:_session];
+        _flashMode = AVCaptureFlashModeOff;
         [self setZoom:1.0];
     }
     return self;
@@ -154,9 +156,6 @@ typedef struct SYCameraDelegateCache {
         if (![strongSelf->_session isRunning]) {
             [strongSelf->_session startRunning];
         }
-        if (strongSelf->_delegate) {
-            [strongSelf->_delegate cameraDidStarted:nil];
-        }
     });
 }
 
@@ -167,9 +166,6 @@ typedef struct SYCameraDelegateCache {
         __strong typeof(weakSelf)strongSelf = weakSelf;
         if ([strongSelf->_session isRunning]) {
             [strongSelf->_session stopRunning];
-        }
-        if (strongSelf->_delegate) {
-            [strongSelf->_delegate cameraDidStoped:nil];
         }
     });
 }
