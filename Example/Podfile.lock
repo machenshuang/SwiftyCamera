@@ -1,16 +1,23 @@
 PODS:
+  - SnapKit (5.6.0)
   - SwiftyCamera (1.0.0)
 
 DEPENDENCIES:
+  - SnapKit
   - SwiftyCamera (from `../`)
+
+SPEC REPOS:
+  trunk:
+    - SnapKit
 
 EXTERNAL SOURCES:
   SwiftyCamera:
     :path: "../"
 
 SPEC CHECKSUMS:
-  SwiftyCamera: 391a33c96a26637a8533be2cc4a7a1288907eb8a
+  SnapKit: e01d52ebb8ddbc333eefe2132acf85c8227d9c25
+  SwiftyCamera: dfb07826d51ec9c87296106bec3a519a8d80c642
 
-PODFILE CHECKSUM: bd212813d2389f147504766b36d7e726738d7734
+PODFILE CHECKSUM: 5b6060426d861d6e39d82574320d1aa5f3413670
 
-COCOAPODS: 1.11.3
+COCOAPODS: 1.13.0

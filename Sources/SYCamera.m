@@ -8,15 +8,17 @@
 #import "SYCamera.h"
 
 typedef struct SYCameraDelegateCache {
-    unsigned int diplayOutputSampleBuffer : 1;
-    unsigned int cameraCapturePhotoOutput : 1;
+    unsigned int cameraDidStarted : 1;
+    unsigned int cameraDidStoped : 1;
+    unsigned int cameraDidOutputSampleBuffer : 1;
+    unsigned int cameraDidFinishProcessingPixelBuffer : 1;
     unsigned int changedPosition : 1;
     unsigned int changedFocus : 1;
     unsigned int changedZoom : 1;
     unsigned int changedExposure : 1;
     unsigned int changedFlash : 1;
     unsigned int changedEV : 1;
-    unsigned int captureWillOutput : 1;
+    unsigned int cameraWillCacpturePhoto : 1;
 } SYCameraDelegateCache;
 
 @interface SYCamera () <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate>
@@ -36,38 +38,22 @@ typedef struct SYCameraDelegateCache {
 @end
 
 
-
 @implementation SYCamera
 
 @synthesize session = _session;
 @synthesize cameraPosition = _cameraPosition;
-@synthesize flashMode = _flashMode;
-
-- (instancetype)init
-{
-    self = [self initWithSessionPreset:AVCaptureSessionPresetPhoto cameraPosition:AVCaptureDevicePositionBack];
-    return self;
-}
 
 - (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset cameraPosition:(AVCaptureDevicePosition)cameraPosition
 {
     self = [super init];
     if (self) {
         _ev = 0.5;
-        _sessionQueue = dispatch_queue_create("com.RGBA.GPUCameraRender.AVCameraSessionQueue", DISPATCH_QUEUE_SERIAL);
-        _cameraProcessQueue = dispatch_queue_create("com.RGBA.GPUCameraRender.AVCameraCameraProcessingQueue", DISPATCH_QUEUE_SERIAL);
-        _captureQueue = dispatch_queue_create("com.RGBA.GPUCameraRender.AVCameraCaptureQueue", DISPATCH_QUEUE_SERIAL);
+        _sessionQueue = dispatch_queue_create("com.machenshuang.camera.AVCameraSessionQueue", DISPATCH_QUEUE_SERIAL);
+        _cameraProcessQueue = dispatch_queue_create("com.machenshuang.camera.AVCameraCameraProcessingQueue", DISPATCH_QUEUE_SERIAL);
+        _captureQueue = dispatch_queue_create("com.machenshuang.camera.AVCameraCaptureQueue", DISPATCH_QUEUE_SERIAL);
         
-        _inputCamera = nil;
-        NSArray *deviceType;
-        if (@available(iOS 13.0, *)) {
-            deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
-        } else {
-            deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];;
-        }
-        AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:cameraPosition];
-        _inputCamera = deviceSession.devices.firstObject;
-        
+        _inputCamera = [self fetchCameraDeviceWithPosition:cameraPosition];
+
         if (!_inputCamera) {
             return nil;
         }
@@ -83,7 +69,6 @@ typedef struct SYCameraDelegateCache {
                                                  selector:@selector(handleCaptureSessionNotification:)
                                                      name:nil
                                                    object:_session];
-        _flashMode = AVCaptureFlashModeOff;
         [self setZoom:1.0];
     }
     return self;
@@ -94,18 +79,40 @@ typedef struct SYCameraDelegateCache {
     [_videoOutput setSampleBufferDelegate:nil queue:nil];
 }
 
+- (AVCaptureDevice *)fetchCameraDeviceWithPosition:(AVCaptureDevicePosition)position
+{
+    AVCaptureDevice *device;
+    if (position == AVCaptureDevicePositionBack) {
+        NSArray *deviceType;
+        if (@available(iOS 13.0, *)) {
+            deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+        } else {
+            deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+        }
+        AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
+        device = deviceSession.devices.firstObject;
+    } else  {
+        AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera mediaType:AVMediaTypeVideo position:position];
+        device = device;
+    }
+    return device;
+}
+
+
 - (void)setDelegate:(id<SYCameraDelegate>)delegate
 {
     _delegate = delegate;
-    _delegateCache.diplayOutputSampleBuffer = [delegate respondsToSelector:@selector(cameraDisplaySampleBuffer:)];
-    _delegateCache.cameraCapturePhotoOutput = [delegate respondsToSelector:@selector(cameraCapturePhotoOutput:error:)];
+    _delegateCache.cameraDidStarted = [delegate respondsToSelector:@selector(cameraDidStarted:)];
+    _delegateCache.cameraDidStoped = [delegate respondsToSelector:@selector(cameraDidStoped:)];
+    _delegateCache.cameraDidOutputSampleBuffer = [delegate respondsToSelector:@selector(cameraDidOutputSampleBuffer:)];
+    _delegateCache.cameraDidFinishProcessingPixelBuffer = [delegate respondsToSelector:@selector(cameraDidFinishProcessingPixelBuffer:withMetaData:error:)];
     _delegateCache.changedPosition = [delegate respondsToSelector:@selector(cameraDidChangedPosition:error:)];
     _delegateCache.changedFocus = [delegate respondsToSelector:@selector(cameraDidChangedFocus:mode:error:)];
     _delegateCache.changedZoom = [delegate respondsToSelector:@selector(cameraDidChangedZoom:error:)];
     _delegateCache.changedExposure = [delegate respondsToSelector:@selector(cameraDidChangedExposure:mode:error:)];
     _delegateCache.changedFlash = [delegate respondsToSelector:@selector(camerahDidChangedFlash:error:)];
     _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangedEV:error:)];
-    _delegateCache.captureWillOutput = [delegate respondsToSelector:@selector(cameraCaptureWillOutput)];
+    _delegateCache.cameraWillCacpturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto)];
 }
 
 - (void)configureSesson:(AVCaptureSessionPreset)sessionPreset
@@ -156,6 +163,9 @@ typedef struct SYCameraDelegateCache {
         if (![strongSelf->_session isRunning]) {
             [strongSelf->_session startRunning];
         }
+        if (strongSelf->_delegate) {
+            [strongSelf->_delegate cameraDidStarted:nil];
+        }
     });
 }
 
@@ -166,6 +176,9 @@ typedef struct SYCameraDelegateCache {
         __strong typeof(weakSelf)strongSelf = weakSelf;
         if ([strongSelf->_session isRunning]) {
             [strongSelf->_session stopRunning];
+        }
+        if (strongSelf->_delegate) {
+            [strongSelf->_delegate cameraDidStoped:nil];
         }
     });
 }
@@ -376,11 +389,18 @@ typedef struct SYCameraDelegateCache {
         __strong typeof(weakSelf)strongSelf = weakSelf;
         NSDictionary *dict = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
         AVCapturePhotoSettings *setting = [AVCapturePhotoSettings photoSettingsWithFormat:dict];
+        
         [setting setHighResolutionPhotoEnabled:YES];
         [setting setAutoStillImageStabilizationEnabled:YES];
+        
         if ([strongSelf->_inputCamera hasFlash]) {
             [setting setFlashMode:strongSelf->_flashMode];
         }
+        
+        if (@available(iOS 13.0, *)) {
+            [setting setPhotoQualityPrioritization:AVCapturePhotoQualityPrioritizationBalanced];
+        }
+        
         [strongSelf->_photoOutput capturePhotoWithSettings:setting delegate:self];
     });
 }
@@ -389,8 +409,8 @@ typedef struct SYCameraDelegateCache {
 - (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection
 {
     CFRetain(sampleBuffer);
-    if (_delegateCache.diplayOutputSampleBuffer) {
-        [_delegate cameraDisplaySampleBuffer:sampleBuffer];
+    if (_delegateCache.cameraDidOutputSampleBuffer) {
+        [_delegate cameraDidOutputSampleBuffer:sampleBuffer];
     }
     CFRelease(sampleBuffer);
 }
@@ -399,18 +419,19 @@ typedef struct SYCameraDelegateCache {
 - (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
 {
     if (error != nil) {
-        if (_delegateCache.cameraCapturePhotoOutput) {
-            [_delegate cameraCapturePhotoOutput:nil error:error];
+        if (_delegateCache.cameraDidFinishProcessingPixelBuffer) {
+            [_delegate cameraDidFinishProcessingPixelBuffer:nil withMetaData:nil error:error];
         }
         return;
     }
-    [_delegate cameraCapturePhotoOutput:photo error:error];
+    [_delegate cameraDidFinishProcessingPixelBuffer:photo.pixelBuffer withMetaData:photo.metadata error:nil];
+    CVPixelBufferRef pixelBuffer = photo.pixelBuffer;
 }
 
 - (void)captureOutput:(AVCapturePhotoOutput *)output willCapturePhotoForResolvedSettings:(AVCaptureResolvedPhotoSettings *)resolvedSettings
 {
-    if (_delegateCache.captureWillOutput) {
-        [self->_delegate cameraCaptureWillOutput];
+    if (_delegateCache.cameraWillCacpturePhoto) {
+        [self->_delegate cameraWillCapturePhoto];
     }
 }
 

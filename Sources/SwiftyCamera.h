@@ -15,5 +15,6 @@ FOUNDATION_EXPORT const unsigned char SwiftyCameraVersionString[];
 
 // In this header, you should import all the public headers of your framework using statements like #import <SwiftyCamera/PublicHeader.h>
 
+#import "SYCameraConfig.h"
+#import "SYCameraManager.h"
 
-#import "SYCamera.h"

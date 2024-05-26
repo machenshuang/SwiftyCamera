@@ -15,17 +15,18 @@ NS_ASSUME_NONNULL_BEGIN
 @required
 - (void)cameraDidStarted:(NSError *_Nullable)error;
 - (void)cameraDidStoped:(NSError *_Nullable)error;
-- (void)cameraCapturePhotoOutput:(AVCapturePhoto * _Nullable)photo error:(NSError *_Nullable)error;
-
+- (void)cameraDidFinishProcessingPixelBuffer:(CVPixelBufferRef _Nullable)pixelBuffer
+                                withMetaData:(NSDictionary *_Nullable)metaData
+                                       error:(NSError *_Nullable)error;
 @optional
-- (void)cameraDisplaySampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
+- (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
 - (void)cameraDidChangedPosition:(BOOL)backFacing error:(NSError *_Nullable)error;
 - (void)cameraDidChangedFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error;
 - (void)cameraDidChangedZoom:(CGFloat)value error:(NSError *_Nullable)error;
 - (void)cameraDidChangedExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error;
 - (void)camerahDidChangedFlash:(AVCaptureFlashMode)mode error:(NSError *_Nullable)error;
 - (void)cameraDidChangedEV:(CGFloat)value error:(NSError *_Nullable)error;
-- (void)cameraCaptureWillOutput;
+- (void)cameraWillCapturePhoto;
 
 @end
 
@@ -38,9 +39,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL enableOfZoomAnimation;
 @property (nonatomic, assign) CGFloat ev;
 @property (nonatomic, assign, readonly) AVCaptureDevicePosition cameraPosition;
-@property (nonatomic, strong, readonly) AVCaptureSession *session;
+@property (nonatomic, copy, readonly) AVCaptureSession *session;
 
-@property (nonatomic, weak) id<SYCameraDelegate> delegate;
+@property (nullable, nonatomic, weak) id<SYCameraDelegate> delegate;
 
 - (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset cameraPosition:(AVCaptureDevicePosition)cameraPosition;
 - (void)startCapture;
