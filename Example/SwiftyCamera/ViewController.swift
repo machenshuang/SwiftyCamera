@@ -15,6 +15,10 @@ class ViewController: UIViewController {
     private var cameraManager: SYCameraManager!
     private var previewView: UIView!
     private var shutterBtn: UIButton!
+    private var filpBtn: UIButton!
+    private var albumBtn: UIButton!
+    
+    private var isBacking: Bool = true
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -48,7 +52,7 @@ class ViewController: UIViewController {
             $0.center.equalToSuperview()
         }
         
-        var backView = UIView(frame: .zero)
+        let backView = UIView(frame: .zero)
         backView.backgroundColor = UIColor(red: 0.121, green: 0.121, blue: 0.121, alpha: 0.57)
         previewView.addSubview(backView)
         
@@ -67,15 +71,29 @@ class ViewController: UIViewController {
             $0.bottom.equalTo(previewView.snp.bottom).offset(-20)
         }
         
+        filpBtn = UIButton(frame: .zero)
+        filpBtn.setImage(UIImage(named: "icon_filp"), for: .normal)
+        filpBtn.addTarget(self, action: #selector(cameraFilp), for: .touchUpInside)
+        view.addSubview(filpBtn)
+        filpBtn.snp.makeConstraints {
+            $0.width.height.equalTo(48)
+            $0.trailing.equalToSuperview().offset(-16)
+            $0.centerY.equalTo(shutterBtn)
+        }
+        
         cameraManager = SYCameraManager()
         
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { (ret) in
-                if ret {
-                    self.setupCamera()
+                DispatchQueue.main.async { [weak self] in
+                    guard let `self` = self else { return }
+                    if ret {
+                        self.setupCamera()
+                    }
                 }
+                
             }
         case .authorized:
             self.setupCamera()
@@ -97,8 +115,15 @@ class ViewController: UIViewController {
     }
     
     @objc private func takePhoto() {
-        if (cameraManager.isAuthority) {
+        if cameraManager.isAuthority {
             cameraManager.takePhoto()
+        }
+    }
+    
+    @objc private func cameraFilp() {
+        if cameraManager.isAuthority {
+            isBacking = !isBacking
+            cameraManager.changeCameraPosition(isBacking ? .back : .front)
         }
     }
 
@@ -114,7 +139,14 @@ extension ViewController: SYCameraManagerDelegate {
     }
     
     func cameraDidFinishProcessingPhoto(_ image: UIImage?, withMetaData metaData: [AnyHashable : Any]?, with manager: SYCameraManager, withError error: Error?) {
-        //debugPrint("cameraDidFinishProcessingPhoto image = \(String(describing: image)), metaData = \(String(describing: metaData)), error = \(String(describing: error))")
+        DispatchQueue.main.async { [weak self] in
+            guard let `self` = self else { return }
+            guard let image = image else {
+                return
+            }
+            
+            PreviewViewController.show(with: ["image": image], from: self)
+        }
     }
     
     

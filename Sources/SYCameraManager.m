@@ -58,6 +58,7 @@ typedef struct SYCameraManagerDelegateCache {
     _camera = [[SYCamera alloc] initWithSessionPreset:config.sessionPreset cameraPosition:config.devicePosition];
     _camera.delegate = self;
     _previewView.session = _camera.session;
+    _camera.orientation = [self convertOrientation:self.deviceOrientation];
     self.isAuthority = YES;
     completion(self.isAuthority);
 }
@@ -154,19 +155,61 @@ typedef struct SYCameraManagerDelegateCache {
     return image;
 }
 
+- (void)setDeviceOrientation:(UIDeviceOrientation)orientation 
+{
+    _deviceOrientation = orientation;
+    if (_camera) {
+        AVCaptureVideoOrientation videoOrientation = [self convertOrientation:orientation];
+        _camera.orientation = videoOrientation;
+    }
+}
+
+- (AVCaptureVideoOrientation)convertOrientation:(UIDeviceOrientation)orientation
+{
+    AVCaptureVideoOrientation videoOrientation = AVCaptureVideoOrientationPortrait;
+    switch (orientation) {
+        case UIDeviceOrientationPortrait: {
+            videoOrientation = AVCaptureVideoOrientationPortrait;
+            break;
+        }
+        case UIDeviceOrientationLandscapeLeft: {
+            videoOrientation = AVCaptureVideoOrientationLandscapeRight;
+            break;
+        }
+        case UIDeviceOrientationLandscapeRight: {
+            videoOrientation = AVCaptureVideoOrientationLandscapeLeft;
+            break;
+        }
+        case UIDeviceOrientationPortraitUpsideDown: {
+            videoOrientation = AVCaptureVideoOrientationPortraitUpsideDown;
+            break;
+        }
+        default: {
+            break;
+        }
+    }
+    return videoOrientation;
+}
+
 
 #pragma mark - SYCameraDelegate
 
 
-- (void)cameraDidFinishProcessingPixelBuffer:(CVPixelBufferRef _Nullable)pixelBuffer withMetaData:(NSDictionary * _Nullable)metaData error:(NSError * _Nullable)error 
+- (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
 {
     if (_delegateCache.cameraDidFinishProcessingPhoto) {
-        if (pixelBuffer == nil) {
-            [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:metaData withManager:self withError:error];
+        NSData *imageData = [photo fileDataRepresentation];
+        if (imageData == nil) {
+            [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
             return;
         }
-        UIImage *image = [self imageFromPixelBuffer:pixelBuffer];
-        [_delegate cameraDidFinishProcessingPhoto:image withMetaData:metaData withManager:self withError:error];
+        UIImage *image = [[UIImage alloc] initWithData:imageData];
+        if (image == nil) {
+            [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
+            return;
+        }
+        
+        [_delegate cameraDidFinishProcessingPhoto:image withMetaData:photo.metadata withManager:self withError:error];
     }
 }
 
@@ -191,42 +234,42 @@ typedef struct SYCameraManagerDelegateCache {
     }
 }
 
-- (void)cameraDidChangedPosition:(BOOL)backFacing error:(NSError *_Nullable)error
+- (void)cameraDidChangePosition:(BOOL)backFacing error:(NSError *_Nullable)error
 {
     if (_delegateCache.changedPosition) {
         [_delegate cameraDidChangedPosition:backFacing withManager:self withError:error];
     }
 }
 
-- (void)cameraDidChangedFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error
+- (void)cameraDidChangeFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error
 {
     if (_delegateCache.changedFocus) {
         [_delegate cameraDidChangedFocus:value mode:mode withManager:self withError:error];
     }
 }
 
-- (void)cameraDidChangedZoom:(CGFloat)value error:(NSError *_Nullable)error
+- (void)cameraDidChangeZoom:(CGFloat)value error:(NSError *_Nullable)error
 {
     if (_delegateCache.changedZoom) {
         [_delegate cameraDidChangedZoom:value withManager:self withError:error];
     }
 }
 
-- (void)cameraDidChangedExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error
+- (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error
 {
     if (_delegateCache.cameraDidStoped) {
         [_delegate cameraDidChangedExposure:value mode:mode withManager:self withError:error];
     }
 }
 
-- (void)camerahDidChangedFlash:(AVCaptureFlashMode)mode error:(NSError *_Nullable)error
+- (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode error:(NSError *_Nullable)error
 {
     if (_delegateCache.changedFlash) {
         [_delegate camerahDidChangedFlash:mode withManager:self withError:error];
     }
 }
 
-- (void)cameraDidChangedEV:(CGFloat)value error:(NSError *_Nullable)error
+- (void)cameraDidChangeEV:(CGFloat)value error:(NSError *_Nullable)error
 {
     if (_delegateCache.changedEV) {
         [_delegate cameraDidChangedEV:value withManager:self withError:error];

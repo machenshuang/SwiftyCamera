@@ -60,6 +60,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nullable, nonatomic, weak) id<SYCameraManagerDelegate> delegate;
 @property (nonatomic, assign, readonly) BOOL isAuthority;
+@property (nonatomic, assign) UIDeviceOrientation deviceOrientation;
 
 
 - (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;

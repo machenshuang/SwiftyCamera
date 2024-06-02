@@ -15,17 +15,16 @@ NS_ASSUME_NONNULL_BEGIN
 @required
 - (void)cameraDidStarted:(NSError *_Nullable)error;
 - (void)cameraDidStoped:(NSError *_Nullable)error;
-- (void)cameraDidFinishProcessingPixelBuffer:(CVPixelBufferRef _Nullable)pixelBuffer
-                                withMetaData:(NSDictionary *_Nullable)metaData
-                                       error:(NSError *_Nullable)error;
+- (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *_Nullable)photo
+                                 error:(NSError *_Nullable)error;
 @optional
 - (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
-- (void)cameraDidChangedPosition:(BOOL)backFacing error:(NSError *_Nullable)error;
-- (void)cameraDidChangedFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error;
-- (void)cameraDidChangedZoom:(CGFloat)value error:(NSError *_Nullable)error;
-- (void)cameraDidChangedExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error;
-- (void)camerahDidChangedFlash:(AVCaptureFlashMode)mode error:(NSError *_Nullable)error;
-- (void)cameraDidChangedEV:(CGFloat)value error:(NSError *_Nullable)error;
+- (void)cameraDidChangePosition:(BOOL)backFacing error:(NSError *_Nullable)error;
+- (void)cameraDidChangeFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error;
+- (void)cameraDidChangeZoom:(CGFloat)value error:(NSError *_Nullable)error;
+- (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error;
+- (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode error:(NSError *_Nullable)error;
+- (void)cameraDidChangeEV:(CGFloat)value error:(NSError *_Nullable)error;
 - (void)cameraWillCapturePhoto;
 
 @end
@@ -40,6 +39,7 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) CGFloat ev;
 @property (nonatomic, assign, readonly) AVCaptureDevicePosition cameraPosition;
 @property (nonatomic, copy, readonly) AVCaptureSession *session;
+@property (nonatomic, assign) AVCaptureVideoOrientation orientation;
 
 @property (nullable, nonatomic, weak) id<SYCameraDelegate> delegate;
 

@@ -11,7 +11,7 @@ typedef struct SYCameraDelegateCache {
     unsigned int cameraDidStarted : 1;
     unsigned int cameraDidStoped : 1;
     unsigned int cameraDidOutputSampleBuffer : 1;
-    unsigned int cameraDidFinishProcessingPixelBuffer : 1;
+    unsigned int cameraDidFinishProcessingPhoto : 1;
     unsigned int changedPosition : 1;
     unsigned int changedFocus : 1;
     unsigned int changedZoom : 1;
@@ -105,13 +105,13 @@ typedef struct SYCameraDelegateCache {
     _delegateCache.cameraDidStarted = [delegate respondsToSelector:@selector(cameraDidStarted:)];
     _delegateCache.cameraDidStoped = [delegate respondsToSelector:@selector(cameraDidStoped:)];
     _delegateCache.cameraDidOutputSampleBuffer = [delegate respondsToSelector:@selector(cameraDidOutputSampleBuffer:)];
-    _delegateCache.cameraDidFinishProcessingPixelBuffer = [delegate respondsToSelector:@selector(cameraDidFinishProcessingPixelBuffer:withMetaData:error:)];
-    _delegateCache.changedPosition = [delegate respondsToSelector:@selector(cameraDidChangedPosition:error:)];
-    _delegateCache.changedFocus = [delegate respondsToSelector:@selector(cameraDidChangedFocus:mode:error:)];
-    _delegateCache.changedZoom = [delegate respondsToSelector:@selector(cameraDidChangedZoom:error:)];
-    _delegateCache.changedExposure = [delegate respondsToSelector:@selector(cameraDidChangedExposure:mode:error:)];
-    _delegateCache.changedFlash = [delegate respondsToSelector:@selector(camerahDidChangedFlash:error:)];
-    _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangedEV:error:)];
+    _delegateCache.cameraDidFinishProcessingPhoto = [delegate respondsToSelector:@selector(cameraDidFinishProcessingPhoto:error:)];
+    _delegateCache.changedPosition = [delegate respondsToSelector:@selector(cameraDidChangePosition:error:)];
+    _delegateCache.changedFocus = [delegate respondsToSelector:@selector(cameraDidChangeFocus:mode:error:)];
+    _delegateCache.changedZoom = [delegate respondsToSelector:@selector(cameraDidChangeZoom:error:)];
+    _delegateCache.changedExposure = [delegate respondsToSelector:@selector(cameraDidChangeExposure:mode:error:)];
+    _delegateCache.changedFlash = [delegate respondsToSelector:@selector(camerahDidChangeFlash:error:)];
+    _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangeEV:error:)];
     _delegateCache.cameraWillCacpturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto)];
 }
 
@@ -202,7 +202,7 @@ typedef struct SYCameraDelegateCache {
 {
     if (position == _cameraPosition) {
         if (self->_delegateCache.changedPosition) {
-            [self->_delegate cameraDidChangedPosition:self->_cameraPosition == AVCaptureDevicePositionBack ? YES : NO error:nil];
+            [self->_delegate cameraDidChangePosition:self->_cameraPosition == AVCaptureDevicePositionBack ? YES : NO error:nil];
         }
         return;
     }
@@ -244,7 +244,7 @@ typedef struct SYCameraDelegateCache {
         
         [strongSelf->_session commitConfiguration];
         if (strongSelf->_delegateCache.changedPosition) {
-            [strongSelf->_delegate cameraDidChangedPosition:strongSelf->_cameraPosition == AVCaptureDevicePositionBack ? YES : NO error:error];
+            [strongSelf->_delegate cameraDidChangePosition:strongSelf->_cameraPosition == AVCaptureDevicePositionBack ? YES : NO error:error];
         }
     });
 }
@@ -266,7 +266,7 @@ typedef struct SYCameraDelegateCache {
         }
         [strongSelf->_inputCamera unlockForConfiguration];
         if (strongSelf->_delegateCache.changedFocus) {
-            [strongSelf->_delegate cameraDidChangedFocus:point mode:mode error:error];
+            [strongSelf->_delegate cameraDidChangeFocus:point mode:mode error:error];
         }
     });
 }
@@ -288,7 +288,7 @@ typedef struct SYCameraDelegateCache {
         }
         [strongSelf->_inputCamera unlockForConfiguration];
         if (strongSelf->_delegateCache.changedExposure) {
-            [strongSelf->_delegate cameraDidChangedExposure:point mode:mode error:error];
+            [strongSelf->_delegate cameraDidChangeExposure:point mode:mode error:error];
         }
     });
 }
@@ -311,7 +311,7 @@ typedef struct SYCameraDelegateCache {
         [strongSelf->_inputCamera setExposureTargetBias:(float)current completionHandler:nil];
         [strongSelf->_inputCamera unlockForConfiguration];
         if (strongSelf->_delegateCache.changedEV) {
-            [strongSelf->_delegate cameraDidChangedEV:value error:error];
+            [strongSelf->_delegate cameraDidChangeEV:value error:error];
         }
     });
 }
@@ -348,7 +348,7 @@ typedef struct SYCameraDelegateCache {
         }
         [strongSelf->_inputCamera unlockForConfiguration];
         if (strongSelf->_delegateCache.changedZoom) {
-            [strongSelf->_delegate cameraDidChangedZoom:value error:error];
+            [strongSelf->_delegate cameraDidChangeZoom:value error:error];
         }
     });
 }
@@ -390,8 +390,16 @@ typedef struct SYCameraDelegateCache {
         NSDictionary *dict = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
         AVCapturePhotoSettings *setting = [AVCapturePhotoSettings photoSettingsWithFormat:dict];
         
+        // 设置高清晰
         [setting setHighResolutionPhotoEnabled:YES];
+        // 防抖
         [setting setAutoStillImageStabilizationEnabled:YES];
+        
+        AVCaptureConnection *photoOutputConnection = [self->_photoOutput connectionWithMediaType:AVMediaTypeVideo];
+        if (photoOutputConnection) {
+            photoOutputConnection.videoOrientation = self.orientation;
+            photoOutputConnection.videoMirrored = self.cameraPosition == AVCaptureDevicePositionFront;
+        }
         
         if ([strongSelf->_inputCamera hasFlash]) {
             [setting setFlashMode:strongSelf->_flashMode];
@@ -418,14 +426,9 @@ typedef struct SYCameraDelegateCache {
 #pragma mark - AVCapturePhotoCaptureDelegate
 - (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
 {
-    if (error != nil) {
-        if (_delegateCache.cameraDidFinishProcessingPixelBuffer) {
-            [_delegate cameraDidFinishProcessingPixelBuffer:nil withMetaData:nil error:error];
-        }
-        return;
+    if (_delegateCache.cameraDidFinishProcessingPhoto) {
+        [_delegate cameraDidFinishProcessingPhoto:photo error:error];
     }
-    [_delegate cameraDidFinishProcessingPixelBuffer:photo.pixelBuffer withMetaData:photo.metadata error:nil];
-    CVPixelBufferRef pixelBuffer = photo.pixelBuffer;
 }
 
 - (void)captureOutput:(AVCapturePhotoOutput *)output willCapturePhotoForResolvedSettings:(AVCaptureResolvedPhotoSettings *)resolvedSettings
