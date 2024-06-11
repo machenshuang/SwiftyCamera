@@ -8,6 +8,7 @@
 #import "SYCameraManager.h"
 #import "SYCamera.h"
 #import "SYPreviewView.h"
+#import "SYRecorder.h"
 
 typedef struct SYCameraManagerDelegateCache {
     unsigned int cameraDidStarted : 1;
@@ -21,6 +22,7 @@ typedef struct SYCameraManagerDelegateCache {
     unsigned int changedFlash : 1;
     unsigned int changedEV : 1;
     unsigned int cameraWillCapturePhoto : 1;
+    unsigned int cameraDidChangeMode: 1;
 } SYCameraManagerDelegateCache;
 
 @interface SYCameraManager () <SYCameraDelegate>
@@ -29,6 +31,7 @@ typedef struct SYCameraManagerDelegateCache {
     SYPreviewView *_previewView;
     SYCameraManagerDelegateCache _delegateCache;
     SYCameraConfig *_config;
+    
 }
 
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
@@ -55,12 +58,60 @@ typedef struct SYCameraManagerDelegateCache {
         completion(self.isAuthority);
         return;
     }
-    _camera = [[SYCamera alloc] initWithSessionPreset:config.sessionPreset cameraPosition:config.devicePosition];
+    _config = [[SYCameraConfig alloc] initWithMode:config.mode
+                                 withSessionPreset:config.sessionPreset
+                                      withPosition:config.devicePosition];
+    
+    if (_config.devicePosition == AVCaptureDevicePositionUnspecified) {
+        _config.devicePosition = AVCaptureDevicePositionBack;
+    }
+    
+    if (_config.mode == SKModeUnspecified) {
+        _config.mode = SKPhotoMode;
+    }
+    
+    if (_config.sessionPreset == nil) {
+        if (_config.mode == SKPhotoMode) {
+            _config.sessionPreset = AVCaptureSessionPresetPhoto;
+        } else {
+            _config.sessionPreset = AVCaptureSessionPresetHigh;
+        }
+    }
+    
+    _camera = [[SYCamera alloc] initWithSessionPreset:config.sessionPreset cameraPosition:config.devicePosition withMode:config.mode];
     _camera.delegate = self;
     _previewView.session = _camera.session;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
     self.isAuthority = YES;
     completion(self.isAuthority);
+}
+
+- (void)updateCameraConfig:(SYCameraConfig *)config
+{
+    if (!_isAuthority) {
+        return;
+    }
+    
+    if (config.devicePosition != AVCaptureDevicePositionUnspecified && config.devicePosition != _config.devicePosition) {
+        [_camera changeCameraPosition:config.devicePosition];
+        _config.devicePosition = config.devicePosition;
+    }
+    
+    if (config.mode != SKModeUnspecified && config.mode != _config.mode) {
+        AVCaptureSessionPreset preset;
+        if (config.sessionPreset == nil) {
+            if (config.mode == SKPhotoMode) {
+                preset = AVCaptureSessionPresetPhoto;
+            } else {
+                preset = AVCaptureSessionPresetHigh;
+            }
+        } else {
+            preset = config.sessionPreset;
+        }
+        [_camera changeCameraMode:config.mode withSessionPreset:preset];
+        _config.sessionPreset = preset;
+        _config.mode = config.mode;
+    }
 }
 
 - (void)addPreviewToView:(UIView *)view
@@ -94,6 +145,7 @@ typedef struct SYCameraManagerDelegateCache {
     _delegateCache.changedFlash = [delegate respondsToSelector:@selector(camerahDidChangedFlash:withManager:withError:)];
     _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangedEV:withManager:withError:)];
     _delegateCache.cameraWillCapturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto:)];
+    _delegateCache.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:withManager:error:)];
 }
 
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position 
@@ -143,6 +195,35 @@ typedef struct SYCameraManagerDelegateCache {
         return;
     }
     [_camera takePhoto];
+}
+
+- (void)startRecord
+{
+    if (_camera == nil) {
+        return;
+    }
+    [_camera ];
+}
+
+- (void)stopRecord
+{
+    if (_camera == nil) {
+        return;
+    }
+}
+
+- (void)pauseRecord
+{
+    if (_camera == nil) {
+        return;
+    }
+}
+
+- (void)resumeRecord
+{
+    if (_camera == nil) {
+        return;
+    }
 }
 
 - (UIImage *)imageFromPixelBuffer:(CVPixelBufferRef) pixelbuffer
@@ -280,6 +361,13 @@ typedef struct SYCameraManagerDelegateCache {
 {
     if (_delegateCache.cameraWillCapturePhoto) {
         [_delegate cameraWillCapturePhoto:self];
+    }
+}
+
+- (void)cameraDidChangeMode:(SYCameraMode)mode error:(NSError *)error
+{
+    if (_delegateCache.cameraDidChangeMode) {
+        [_delegate cameraDidChangeMode:mode withManager:self error:error];
     }
 }
 

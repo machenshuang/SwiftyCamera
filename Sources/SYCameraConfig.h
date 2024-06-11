@@ -10,10 +10,18 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+typedef NS_ENUM(NSUInteger, SYCameraMode) {
+    SKPhotoMode,
+    SKVideoMode,
+    SKModeUnspecified,
+};
+
 @interface SYCameraConfig : NSObject
 
-@property (nonatomic, assign) AVCaptureSessionPreset sessionPreset;
+@property (nonatomic, assign) SYCameraMode mode;
+@property (nonatomic, copy, nullable) AVCaptureSessionPreset sessionPreset;
 @property (nonatomic, assign) AVCaptureDevicePosition devicePosition;
+
 
 - (instancetype)init;
 
@@ -21,8 +29,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameters:
 ///   - sessionPreset: AVCaptureSessionPreset
 ///   - devicePosition: AVCaptureDevicePosition
-- (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
-                         withPosition:(AVCaptureDevicePosition)devicePosition;
+- (instancetype)initWithMode:(SYCameraMode)mode
+           withSessionPreset:(AVCaptureSessionPreset)sessionPreset
+                withPosition:(AVCaptureDevicePosition)devicePosition;
 
 
 @end

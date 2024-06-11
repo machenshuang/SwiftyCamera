@@ -19,12 +19,14 @@ typedef struct SYCameraDelegateCache {
     unsigned int changedFlash : 1;
     unsigned int changedEV : 1;
     unsigned int cameraWillCacpturePhoto : 1;
+    unsigned int cameraDidChangeMode: 1;
 } SYCameraDelegateCache;
 
 @interface SYCamera () <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate>
 {
     AVCaptureDevice *_inputCamera;
     AVCaptureDeviceInput *_videoInput;
+    AVCaptureDeviceInput *_audioInput;
     AVCaptureVideoDataOutput *_videoOutput;
     AVCapturePhotoOutput *_photoOutput;
     
@@ -42,8 +44,11 @@ typedef struct SYCameraDelegateCache {
 
 @synthesize session = _session;
 @synthesize cameraPosition = _cameraPosition;
+@synthesize mode = _mode;
 
-- (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset cameraPosition:(AVCaptureDevicePosition)cameraPosition
+- (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
+                       cameraPosition:(AVCaptureDevicePosition)cameraPosition
+                             withMode:(SYCameraMode)mode;
 {
     self = [super init];
     if (self) {
@@ -58,6 +63,7 @@ typedef struct SYCameraDelegateCache {
             return nil;
         }
         _cameraPosition = cameraPosition;
+        _mode = mode;
         _session = [[AVCaptureSession alloc] init];
         __weak typeof(self)weakSelf = self;
         dispatch_async(_sessionQueue, ^{
@@ -69,7 +75,6 @@ typedef struct SYCameraDelegateCache {
                                                  selector:@selector(handleCaptureSessionNotification:)
                                                      name:nil
                                                    object:_session];
-        [self setZoom:1.0];
     }
     return self;
 }
@@ -113,25 +118,92 @@ typedef struct SYCameraDelegateCache {
     _delegateCache.changedFlash = [delegate respondsToSelector:@selector(camerahDidChangeFlash:error:)];
     _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangeEV:error:)];
     _delegateCache.cameraWillCacpturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto)];
+    _delegateCache.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:error:)];
+}
+
+- (void)changeCameraMode:(SYCameraMode)mode
+       withSessionPreset:(AVCaptureSessionPreset)sessionPreset
+{
+    __weak typeof(self)weakSelf = self;
+    dispatch_async(_sessionQueue, ^{
+        __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (strongSelf->_mode == mode) {
+            if (strongSelf->_delegateCache.cameraDidChangeMode) {
+                [strongSelf.delegate cameraDidChangeMode:mode error:nil];
+            }
+            return;
+        }
+        strongSelf->_mode = mode;
+        [strongSelf configureSesson:sessionPreset];
+        if (strongSelf->_delegateCache.cameraDidChangeMode) {
+            [strongSelf.delegate cameraDidChangeMode:mode error:nil];
+        }
+    });
 }
 
 - (void)configureSesson:(AVCaptureSessionPreset)sessionPreset
 {
     [_session beginConfiguration];
-    NSError *error = nil;
-    // 添加 input
-    _videoInput = [[AVCaptureDeviceInput alloc] initWithDevice:_inputCamera error:&error];
-    if ([_session canAddInput:_videoInput]) {
-        [_session addInput:_videoInput];
+    [self configureVideoDeviceInput];
+    [self configureAudioDeviceInput];
+    [self configureVideoOutput];
+    [self configurePhotoOutput];
+    
+    [_session setSessionPreset:sessionPreset];
+    [_session commitConfiguration];
+    [self setZoom:1.0];
+}
+
+- (void)configureVideoDeviceInput
+{
+    if (_videoInput != nil &&_inputCamera != nil && _videoInput.device == _inputCamera) {
+        return;
     }
     
-    // 添加 frame output
-    _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
-    [_videoOutput setAlwaysDiscardsLateVideoFrames:NO];
-    [_videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
-    [_videoOutput setSampleBufferDelegate:self queue:_cameraProcessQueue];
-    if ([_session canAddOutput:_videoOutput]) {
-        [_session addOutput:_videoOutput];
+    NSError *error = nil;
+    // 添加 input
+    AVCaptureDeviceInput *videoInput = [[AVCaptureDeviceInput alloc] initWithDevice:_inputCamera error:&error];
+    if (_videoInput) {
+        [_session removeInput:_videoInput];
+    }
+    if ([_session canAddInput:videoInput]) {
+        [_session addInput:videoInput];
+        _videoInput = videoInput;
+    } else {
+        [_session addInput:_videoInput];
+    }
+}
+
+- (void)configureAudioDeviceInput
+{
+    NSError *error = nil;
+    if (_mode == SKPhotoMode) {
+        if (_audioInput) {
+            [_session removeInput:_audioInput];
+            _audioInput = nil;
+        }
+    } else {
+        if (_audioInput == nil) {
+            AVCaptureDevice* audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+            AVCaptureDeviceInput* audioDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&error];
+            if ([_session canAddInput:audioDeviceInput]) {
+                [_session addInput:audioDeviceInput];
+                _audioInput = audioDeviceInput;
+            }
+        }
+    }
+}
+
+- (void)configureVideoOutput
+{
+    if (_videoOutput == nil) {
+        _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
+        [_videoOutput setAlwaysDiscardsLateVideoFrames:NO];
+        [_videoOutput setVideoSettings:[NSDictionary dictionaryWithObject:[NSNumber numberWithInt:kCVPixelFormatType_32BGRA] forKey:(id)kCVPixelBufferPixelFormatTypeKey]];
+        [_videoOutput setSampleBufferDelegate:self queue:_cameraProcessQueue];
+        if ([_session canAddOutput:_videoOutput]) {
+            [_session addOutput:_videoOutput];
+        }
     }
     
     for (AVCaptureConnection *connect in _videoOutput.connections) {
@@ -142,18 +214,27 @@ typedef struct SYCameraDelegateCache {
             [connect setVideoOrientation: AVCaptureVideoOrientationPortrait];
         }
     }
-    
-    // 添加 photo output
-    
-    _photoOutput = [AVCapturePhotoOutput new];
-    [_photoOutput setHighResolutionCaptureEnabled:YES];
-    if ([_session canAddOutput:_photoOutput]) {
-        [_session addOutput:_photoOutput];
+}
+
+- (void)configurePhotoOutput
+{
+    if (_mode == SKVideoMode) {
+        if (_photoOutput) {
+            [_session removeOutput:_photoOutput];
+            _photoOutput = nil;
+        }
+    } else {
+        if (_photoOutput == nil) {
+            _photoOutput = [AVCapturePhotoOutput new];
+            [_photoOutput setHighResolutionCaptureEnabled:YES];
+            if ([_session canAddOutput:_photoOutput]) {
+                [_session addOutput:_photoOutput];
+            }
+        }
     }
     
-    [_session setSessionPreset:sessionPreset];
-    [_session commitConfiguration];
 }
+
 
 - (void)startCapture
 {
@@ -206,42 +287,14 @@ typedef struct SYCameraDelegateCache {
         }
         return;
     }
-    AVCaptureDevice *newInputCamera = nil;
-    AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:@[AVCaptureDeviceTypeBuiltInWideAngleCamera] mediaType:AVMediaTypeVideo position:position];
-    for (AVCaptureDevice *device in deviceSession.devices)
-    {
-        if ([device position] == position)
-        {
-            newInputCamera = device;
-        }
-    }
-   
+    
     self->_cameraPosition = position;
-    _inputCamera = newInputCamera;
+    _inputCamera = [self fetchCameraDeviceWithPosition:position];
     __weak typeof(self)weakSelf = self;
     dispatch_async(_sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
-        AVCaptureDeviceInput *newVideoInput;
         NSError *error;
-        newVideoInput = [[AVCaptureDeviceInput alloc] initWithDevice:newInputCamera error:&error];
-        [strongSelf->_session beginConfiguration];
-        [strongSelf->_session removeInput:strongSelf->_videoInput];
-        if ([strongSelf->_session canAddInput:newVideoInput]) {
-            [strongSelf->_session addInput:newVideoInput];
-            strongSelf->_videoInput = newVideoInput;
-        } else {
-            [strongSelf->_session addInput:strongSelf->_videoInput];
-        }
-        
-        for (AVCaptureConnection *connect in strongSelf->_videoOutput.connections) {
-            if ([connect isVideoMirroringSupported]) {
-                [connect setVideoMirrored: strongSelf->_cameraPosition == AVCaptureDevicePositionFront ? YES : NO];
-            }
-            if ([connect isVideoOrientationSupported]) {
-                [connect setVideoOrientation: AVCaptureVideoOrientationPortrait];
-            }
-        }
-        
+        [self configureVideoDeviceInput];
         [strongSelf->_session commitConfiguration];
         if (strongSelf->_delegateCache.changedPosition) {
             [strongSelf->_delegate cameraDidChangePosition:strongSelf->_cameraPosition == AVCaptureDevicePositionBack ? YES : NO error:error];
@@ -387,6 +440,11 @@ typedef struct SYCameraDelegateCache {
     __weak typeof(self)weakSelf = self;
     dispatch_async(_captureQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
+        
+        if (strongSelf->_mode != SKPhotoMode) {
+            return;
+        }
+        
         NSDictionary *dict = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
         AVCapturePhotoSettings *setting = [AVCapturePhotoSettings photoSettingsWithFormat:dict];
         

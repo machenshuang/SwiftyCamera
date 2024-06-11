@@ -11,15 +11,22 @@
 
 - (instancetype)init
 {
-    self = [self initWithSessionPreset:AVCaptureSessionPresetPhoto withPosition:AVCaptureDevicePositionBack];
+    self = [super init];
+    if (self) {
+        self.mode = SKModeUnspecified;
+        self.sessionPreset = nil;
+        self.devicePosition = AVCaptureDevicePositionUnspecified;
+    }
     return self;
 }
 
-- (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
-                         withPosition:(AVCaptureDevicePosition)devicePosition;
+- (instancetype)initWithMode:(SYCameraMode)mode
+           withSessionPreset:(AVCaptureSessionPreset)sessionPreset
+                withPosition:(AVCaptureDevicePosition)devicePosition
 {
     self = [super init];
     if (self) {
+        self.mode = mode;
         self.sessionPreset = sessionPreset;
         self.devicePosition = devicePosition;
     }

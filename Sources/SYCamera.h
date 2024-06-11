@@ -7,6 +7,7 @@
 
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
+#import "SYCameraConfig.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -20,6 +21,7 @@ NS_ASSUME_NONNULL_BEGIN
 @optional
 - (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
 - (void)cameraDidChangePosition:(BOOL)backFacing error:(NSError *_Nullable)error;
+- (void)cameraDidChangeMode:(SYCameraMode)mode error:(NSError *_Nullable)error;
 - (void)cameraDidChangeFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error;
 - (void)cameraDidChangeZoom:(CGFloat)value error:(NSError *_Nullable)error;
 - (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error;
@@ -38,15 +40,20 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) BOOL enableOfZoomAnimation;
 @property (nonatomic, assign) CGFloat ev;
 @property (nonatomic, assign, readonly) AVCaptureDevicePosition cameraPosition;
+@property (nonatomic, assign, readonly) SYCameraMode mode;
 @property (nonatomic, copy, readonly) AVCaptureSession *session;
 @property (nonatomic, assign) AVCaptureVideoOrientation orientation;
 
 @property (nullable, nonatomic, weak) id<SYCameraDelegate> delegate;
 
-- (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset cameraPosition:(AVCaptureDevicePosition)cameraPosition;
+- (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
+                       cameraPosition:(AVCaptureDevicePosition)cameraPosition
+                             withMode:(SYCameraMode)mode;
 - (void)startCapture;
 - (void)stopCapture;
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position;
+- (void)changeCameraMode:(SYCameraMode)mode
+       withSessionPreset:(AVCaptureSessionPreset)sessionPreset;
 - (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode;
 - (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode;
 - (void)takePhoto;

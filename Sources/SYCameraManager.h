@@ -54,6 +54,10 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)cameraWillCapturePhoto:(SYCameraManager *)manager;
 
+- (void)cameraDidChangeMode:(SYCameraMode)mode
+                withManager:(SYCameraManager *)manager
+                      error:(NSError *_Nullable)error;
+
 @end
 
 @interface SYCameraManager : NSObject
@@ -64,6 +68,8 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 - (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
+
+- (void)updateCameraConfig:(SYCameraConfig *)config;
 
 - (void)addPreviewToView:(UIView *)view;
 
