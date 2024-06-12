@@ -69,8 +69,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
 
-- (void)updateCameraConfig:(SYCameraConfig *)config;
-
 - (void)addPreviewToView:(UIView *)view;
 
 /// 启动相机流
@@ -82,6 +80,9 @@ NS_ASSUME_NONNULL_BEGIN
 /// 切换相机前后置
 /// - Parameter position: AVCaptureDevicePosition
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position;
+
+- (void)changeCameraMode:(SYCameraMode)mode
+       withSessionPreset:(nullable AVCaptureSessionPreset)preset;
 
 /// 调整焦点
 /// - Parameters:

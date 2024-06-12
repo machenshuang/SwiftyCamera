@@ -30,8 +30,7 @@ typedef struct SYCameraManagerDelegateCache {
     SYCamera *_camera;
     SYPreviewView *_previewView;
     SYCameraManagerDelegateCache _delegateCache;
-    SYCameraConfig *_config;
-    
+    SYRecorder *_recorder;
 }
 
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
@@ -58,27 +57,26 @@ typedef struct SYCameraManagerDelegateCache {
         completion(self.isAuthority);
         return;
     }
-    _config = [[SYCameraConfig alloc] initWithMode:config.mode
-                                 withSessionPreset:config.sessionPreset
-                                      withPosition:config.devicePosition];
-    
-    if (_config.devicePosition == AVCaptureDevicePositionUnspecified) {
-        _config.devicePosition = AVCaptureDevicePositionBack;
+    AVCaptureSessionPreset preset = config.sessionPreset;
+    AVCaptureDevicePosition position = config.devicePosition;
+    SYCameraMode mode = config.mode;
+    if (position == AVCaptureDevicePositionUnspecified) {
+        position = AVCaptureDevicePositionBack;
     }
     
-    if (_config.mode == SKModeUnspecified) {
-        _config.mode = SKPhotoMode;
+    if (mode == SKModeUnspecified) {
+        mode = SKPhotoMode;
     }
     
-    if (_config.sessionPreset == nil) {
-        if (_config.mode == SKPhotoMode) {
-            _config.sessionPreset = AVCaptureSessionPresetPhoto;
+    if (preset == nil) {
+        if (mode == SKPhotoMode) {
+            preset = AVCaptureSessionPresetPhoto;
         } else {
-            _config.sessionPreset = AVCaptureSessionPresetHigh;
+            preset = AVCaptureSessionPresetHigh;
         }
     }
     
-    _camera = [[SYCamera alloc] initWithSessionPreset:config.sessionPreset cameraPosition:config.devicePosition withMode:config.mode];
+    _camera = [[SYCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode];
     _camera.delegate = self;
     _previewView.session = _camera.session;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
@@ -86,32 +84,28 @@ typedef struct SYCameraManagerDelegateCache {
     completion(self.isAuthority);
 }
 
-- (void)updateCameraConfig:(SYCameraConfig *)config
+- (void)changeCameraMode:(SYCameraMode)mode withSessionPreset:(AVCaptureSessionPreset)preset
 {
-    if (!_isAuthority) {
+    if (!_camera) {
         return;
     }
     
-    if (config.devicePosition != AVCaptureDevicePositionUnspecified && config.devicePosition != _config.devicePosition) {
-        [_camera changeCameraPosition:config.devicePosition];
-        _config.devicePosition = config.devicePosition;
+    if (mode == SKModeUnspecified) {
+        return;
     }
     
-    if (config.mode != SKModeUnspecified && config.mode != _config.mode) {
-        AVCaptureSessionPreset preset;
-        if (config.sessionPreset == nil) {
-            if (config.mode == SKPhotoMode) {
-                preset = AVCaptureSessionPresetPhoto;
-            } else {
-                preset = AVCaptureSessionPresetHigh;
-            }
+    AVCaptureSessionPreset sessionPreset; ;
+    if (preset == nil) {
+        if (mode == SKPhotoMode) {
+            sessionPreset = AVCaptureSessionPresetPhoto;
         } else {
-            preset = config.sessionPreset;
+            sessionPreset = AVCaptureSessionPresetHigh;
         }
-        [_camera changeCameraMode:config.mode withSessionPreset:preset];
-        _config.sessionPreset = preset;
-        _config.mode = config.mode;
+    } else {
+        sessionPreset = preset;
     }
+    
+    [_camera changeCameraMode:mode withSessionPreset:sessionPreset];
 }
 
 - (void)addPreviewToView:(UIView *)view
