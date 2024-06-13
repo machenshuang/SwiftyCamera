@@ -23,6 +23,7 @@ typedef struct SYCameraManagerDelegateCache {
     unsigned int changedEV : 1;
     unsigned int cameraWillCapturePhoto : 1;
     unsigned int cameraDidChangeMode: 1;
+    unsigned int cameraDidFinishProcessingVideo: 1;
 } SYCameraManagerDelegateCache;
 
 @interface SYCameraManager () <SYCameraDelegate>
@@ -31,6 +32,7 @@ typedef struct SYCameraManagerDelegateCache {
     SYPreviewView *_previewView;
     SYCameraManagerDelegateCache _delegateCache;
     SYRecorder *_recorder;
+    CGSize _sampleBufferSize;
 }
 
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
@@ -43,6 +45,7 @@ typedef struct SYCameraManagerDelegateCache {
 {
     self = [super init];
     if (self) {
+        _sampleBufferSize = CGSizeMake(1080, 1920)
         _previewView = [SYPreviewView new];
     }
     return self;
@@ -140,6 +143,7 @@ typedef struct SYCameraManagerDelegateCache {
     _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangedEV:withManager:withError:)];
     _delegateCache.cameraWillCapturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto:)];
     _delegateCache.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:withManager:error:)];
+    _delegateCache.cameraDidFinishProcessingVideo = [delegate respondsToSelector:@selector(cameraDidFinishProcessingVideo:withManager:withError:)];
 }
 
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position 
@@ -196,7 +200,23 @@ typedef struct SYCameraManagerDelegateCache {
     if (_camera == nil) {
         return;
     }
-    [_camera ];
+    if (_recorder != nil) {
+        __weak typeof(self)weakSelf = self;
+        [self realStopRecordWithCompletion:^{
+            __strong typeof(weakSelf)strongSelf = weakSelf;
+            [strongSelf realStartRecord];
+        }];
+    } else {
+        [self realStartRecord];
+    }
+}
+
+- (void)realStartRecord
+{
+    
+    SYRecordConfig *config = [[SYRecordConfig alloc] initWithSize:_sampleBufferSize];
+    _recorder = [[SYRecorder alloc] initWithConfig:config];
+    [_recorder startRecord];
 }
 
 - (void)stopRecord
@@ -204,6 +224,25 @@ typedef struct SYCameraManagerDelegateCache {
     if (_camera == nil) {
         return;
     }
+    
+    if (_recorder) {
+        [self realStopRecordWithCompletion:^{}];
+    }
+    
+}
+
+- (void)realStopRecordWithCompletion:(void(^)(void))completion
+{
+    __weak typeof(self)weakSelf = self;
+    [_recorder stopRecordWithCompletion:^(NSURL * _Nullable outputURL, BOOL ret) {
+        __strong typeof(weakSelf)strongSelf = weakSelf;
+        dispatch_async(dispatch_get_main_queue(), ^{
+            completion();
+        });
+        if (strongSelf->_delegateCache.cameraDidFinishProcessingVideo) {
+            [strongSelf->_delegate cameraDidFinishProcessingVideo:outputURL withManager:strongSelf withError:nil];
+        }
+    }];
 }
 
 - (void)pauseRecord

@@ -9,14 +9,19 @@
 
 @implementation SYRecordConfig
 
-- (instancetype)init
+- (instancetype)initWithSize:(CGSize)size
+{
+    self = [self initWithSize:size withBitrate:3000 withGop:30 withFrameRate:30];
+    return self;
+}
+- (instancetype)initWithSize:(CGSize)size withBitrate:(NSUInteger)bitrate withGop:(NSUInteger)gop withFrameRate:(NSUInteger)frameRate
 {
     self = [super init];
     if (self) {
-        _bitrate = 3000;
-        _gop = 30;
-        _size = CGSizeMake(1080, 1920);
-        _frameRate = 30;
+        _bitrate = bitrate;
+        _gop = gop;
+        _size = size;
+        _frameRate = frameRate;
     }
     return self;
 }

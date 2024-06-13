@@ -16,6 +16,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign) CGSize size;
 @property (nonatomic, assign) NSUInteger frameRate;
 
+- (instancetype)initWithSize:(CGSize)size;
+- (instancetype)initWithSize:(CGSize)size withBitrate:(NSUInteger)bitrate withGop:(NSUInteger)gop withFrameRate:(NSUInteger)frameRate;
+
 @end
 
 NS_ASSUME_NONNULL_END

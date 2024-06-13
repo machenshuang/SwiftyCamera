@@ -46,7 +46,7 @@
     });
 }
 
-- (void)stopRecord
+- (void)stopRecordWithCompletion:(void (^)(NSURL * _Nullable, BOOL))completion
 {
     __weak typeof(self)weakSelf = self;
     dispatch_async(_recordQueue, ^{
@@ -55,9 +55,9 @@
         strongSelf->_resetTime = YES;
         [strongSelf->_writer finishWritingWithCompletionHandler:^{
             if (strongSelf->_writer.status == AVAssetWriterStatusCompleted) {
-                
+                completion(strongSelf->_writer.outputURL, YES);
             } else {
-                
+                completion(nil, NO);
             }
         }];
     });

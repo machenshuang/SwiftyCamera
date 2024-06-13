@@ -24,6 +24,9 @@ NS_ASSUME_NONNULL_BEGIN
                           withMetaData:(NSDictionary *_Nullable)metaData
                            withManager:(SYCameraManager *)manager
                              withError:(NSError *_Nullable)error;
+- (void)cameraDidFinishProcessingVideo:(NSURL *_Nullable)outputURL
+                           withManager:(SYCameraManager *)manager
+                             withError:(NSError *_Nullable)error;
 @optional
 - (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer
                         withManager:(SYCameraManager *)manager;

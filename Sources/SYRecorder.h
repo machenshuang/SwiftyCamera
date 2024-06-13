@@ -15,7 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 - (instancetype)initWithConfig:(SYRecordConfig *)config;
 - (void)startRecord;
-- (void)stopRecord;
+- (void)stopRecordWithCompletion:(void(^)(NSURL * _Nullable, BOOL))completion;
 - (void)pauseRecord;
 - (void)resumeRecord;
 - (void)processSampleBuffer:(CMSampleBufferRef)sampleBuffer;
