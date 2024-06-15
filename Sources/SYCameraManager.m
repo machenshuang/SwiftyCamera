@@ -45,7 +45,7 @@ typedef struct SYCameraManagerDelegateCache {
 {
     self = [super init];
     if (self) {
-        _sampleBufferSize = CGSizeMake(1080, 1920)
+        _sampleBufferSize = CGSizeMake(1080, 1920);
         _previewView = [SYPreviewView new];
     }
     return self;

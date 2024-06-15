@@ -471,10 +471,24 @@ typedef struct SYCameraDelegateCache {
     });
 }
 
+- (void)extractInfoFromSampleBuffer:(CMSampleBufferRef)sampleBuffer
+{
+    CFDictionaryRef dictRef = CMCopyDictionaryOfAttachments(NULL, sampleBuffer, kCMAttachmentMode_ShouldPropagate);
+    NSDictionary *dict = [[NSDictionary alloc] initWithDictionary:(__bridge NSDictionary *)dictRef];
+    CFRelease(dictRef);
+    NSDictionary *exifDict = dict[(NSString *)kCGImagePropertyExifDictionary];
+    if (exifDict != nil) {
+        CGFloat brightness = [exifDict[(NSString *)kCGImagePropertyExifBrightnessValue] floatValue];
+    }
+}
+
 #pragma mark - AVCaptureVideoDataOutputSampleBufferDelegate
 - (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection
 {
     CFRetain(sampleBuffer);
+    
+    [self extractInfoFromSampleBuffer:sampleBuffer];
+    
     if (_delegateCache.cameraDidOutputSampleBuffer) {
         [_delegate cameraDidOutputSampleBuffer:sampleBuffer];
     }
