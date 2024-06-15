@@ -89,11 +89,16 @@ typedef struct SYCameraDelegateCache {
     AVCaptureDevice *device;
     if (position == AVCaptureDevicePositionBack) {
         NSArray *deviceType;
-        if (@available(iOS 13.0, *)) {
-            deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+        if (_mode == SKElectronicScreen) {
+            deviceType = @[AVCaptureDeviceTypeBuiltInWideAngleCamera];
         } else {
-            deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+            if (@available(iOS 13.0, *)) {
+                deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+            } else {
+                deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+            }
         }
+        
         AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
         device = deviceSession.devices.firstObject;
     } else  {
@@ -151,6 +156,7 @@ typedef struct SYCameraDelegateCache {
     
     [_session setSessionPreset:sessionPreset];
     [_session commitConfiguration];
+    [self exposureWithPoint:CGPointMake(0.5, 0.5) mode:AVCaptureExposureModeAutoExpose];
     [self setZoom:1.0];
 }
 
@@ -335,15 +341,37 @@ typedef struct SYCameraDelegateCache {
             [strongSelf->_inputCamera unlockForConfiguration];
             return;
         }
-        if ([strongSelf->_inputCamera isExposureModeSupported:mode]) {
-            [strongSelf->_inputCamera setExposurePointOfInterest:point];
-            [strongSelf->_inputCamera setExposureMode:mode];
-        }
+        [strongSelf->_inputCamera setExposurePointOfInterest:point];
+        [strongSelf setExposureMode:mode];
         [strongSelf->_inputCamera unlockForConfiguration];
         if (strongSelf->_delegateCache.changedExposure) {
             [strongSelf->_delegate cameraDidChangeExposure:point mode:mode error:error];
         }
     });
+}
+
+- (void)setExposureMode:(AVCaptureExposureMode)mode
+{
+    if (_mode == SKElectronicScreen) {
+        if ([_inputCamera isExposureModeSupported:AVCaptureExposureModeCustom]) {
+            _inputCamera.exposureMode = AVCaptureExposureModeCustom;
+            CMTime min = _inputCamera.activeFormat.minExposureDuration;
+            CMTime max = _inputCamera.activeFormat.maxExposureDuration;
+            CMTime time = CMTimeMakeWithSeconds(0.06, 1000);
+            if (CMTimeCompare(time, min) == NSOrderedAscending) {
+                time = min;
+            }
+            if (CMTimeCompare(time, max) == NSOrderedDescending) {
+                time = max;
+            }
+            [_inputCamera setExposureModeCustomWithDuration:time ISO:_inputCamera.activeFormat.minISO completionHandler:^(CMTime syncTime) {
+            }];
+        }
+    } else {
+        if ([_inputCamera isExposureModeSupported:mode]) {
+            [_inputCamera setExposureMode:mode];
+        }
+    }
 }
 
 - (void)setEv:(CGFloat)value
