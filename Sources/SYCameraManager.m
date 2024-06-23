@@ -47,6 +47,7 @@ typedef struct SYCameraManagerDelegateCache {
     if (self) {
         _sampleBufferSize = CGSizeMake(1080, 1920);
         _previewView = [SYPreviewView new];
+        _deviceOrientation = UIDeviceOrientationPortrait;
     }
     return self;
 }
@@ -371,7 +372,7 @@ typedef struct SYCameraManagerDelegateCache {
 
 - (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error
 {
-    if (_delegateCache.cameraDidStoped) {
+    if (_delegateCache.changedExposure) {
         [_delegate cameraDidChangedExposure:value mode:mode withManager:self withError:error];
     }
 }

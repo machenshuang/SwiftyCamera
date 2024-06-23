@@ -11,6 +11,7 @@
 		1B37FE60BA37CBE66D883762 /* Pods_SwiftyCamera_Tests.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 6622D29DEF113942DB5C378B /* Pods_SwiftyCamera_Tests.framework */; };
 		420BD2962C0C0556003E5F92 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420BD2952C0C0556003E5F92 /* PreviewViewController.swift */; };
 		420BD2982C0C05C2003E5F92 /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420BD2972C0C05C2003E5F92 /* VideoPlayerView.swift */; };
+		42B876282C231A9700F8C49B /* CMMotionManager+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B876272C231A9700F8C49B /* CMMotionManager+Ext.swift */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
 		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
 		607FACDB1AFB9204008FA782 /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 607FACD91AFB9204008FA782 /* Main.storyboard */; };
@@ -36,6 +37,7 @@
 		2DC4BE471ECD0BA3560C0F3C /* README.md */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = net.daringfireball.markdown; name = README.md; path = ../README.md; sourceTree = "<group>"; };
 		420BD2952C0C0556003E5F92 /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		420BD2972C0C05C2003E5F92 /* VideoPlayerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
+		42B876272C231A9700F8C49B /* CMMotionManager+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CMMotionManager+Ext.swift"; sourceTree = "<group>"; };
 		607FACD01AFB9204008FA782 /* SwiftyCamera_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftyCamera_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		607FACD51AFB9204008FA782 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
@@ -110,6 +112,7 @@
 				607FACD51AFB9204008FA782 /* AppDelegate.swift */,
 				607FACD71AFB9204008FA782 /* ViewController.swift */,
 				420BD2952C0C0556003E5F92 /* PreviewViewController.swift */,
+				42B876272C231A9700F8C49B /* CMMotionManager+Ext.swift */,
 				607FACD91AFB9204008FA782 /* Main.storyboard */,
 				607FACDC1AFB9204008FA782 /* Images.xcassets */,
 				607FACDE1AFB9204008FA782 /* LaunchScreen.xib */,
@@ -345,6 +348,7 @@
 				607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */,
 				420BD2962C0C0556003E5F92 /* PreviewViewController.swift in Sources */,
 				420BD2982C0C05C2003E5F92 /* VideoPlayerView.swift in Sources */,
+				42B876282C231A9700F8C49B /* CMMotionManager+Ext.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

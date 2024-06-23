@@ -9,6 +9,7 @@
 import UIKit
 import SwiftyCamera
 import SnapKit
+import CoreMotion
 
 class ViewController: UIViewController {
     
@@ -17,6 +18,10 @@ class ViewController: UIViewController {
     private var shutterBtn: UIButton!
     private var filpBtn: UIButton!
     private var albumBtn: UIButton!
+    
+    private lazy var motion: CMMotionManager = {
+       return CMMotionManager()
+    }()
     
     private var isBacking: Bool = true
     
@@ -30,6 +35,12 @@ class ViewController: UIViewController {
         super.viewDidAppear(animated)
         if cameraManager.isAuthority {
             cameraManager.startCapture()
+            motion.motionStart { [weak self](orientation) in
+                guard let `self` = self else {
+                    return
+                }
+                self.cameraManager.deviceOrientation = orientation;
+            }
         }
     }
     
@@ -37,6 +48,7 @@ class ViewController: UIViewController {
         super.viewWillDisappear(animated)
         if cameraManager.isAuthority {
             cameraManager.stopCapture()
+            motion.motionStop()
         }
     }
     
@@ -130,6 +142,10 @@ class ViewController: UIViewController {
 }
 
 extension ViewController: SYCameraManagerDelegate {
+    func cameraDidFinishProcessingVideo(_ outputURL: URL?, with manager: SYCameraManager, withError error: Error?) {
+        
+    }
+    
     func cameraDidStarted(_ manager: SYCameraManager, withError error: Error?) {
         debugPrint("ViewController cameraDidStarted error = \(String(describing: error))")
     }

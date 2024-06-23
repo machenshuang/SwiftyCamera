@@ -102,8 +102,8 @@ typedef struct SYCameraDelegateCache {
         AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
         device = deviceSession.devices.firstObject;
     } else  {
-        AVCaptureDevice *device = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera mediaType:AVMediaTypeVideo position:position];
-        device = device;
+        AVCaptureDevice *frontDevice = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera mediaType:AVMediaTypeVideo position:position];
+        device = frontDevice;
     }
     return device;
 }
@@ -176,7 +176,9 @@ typedef struct SYCameraDelegateCache {
         [_session addInput:videoInput];
         _videoInput = videoInput;
     } else {
-        [_session addInput:_videoInput];
+        if (_videoInput) {
+            [_session addInput:_videoInput];
+        }
     }
 }
 
