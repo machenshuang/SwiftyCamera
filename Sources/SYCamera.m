@@ -66,7 +66,9 @@ typedef struct SYCameraDelegateCache {
         _mode = mode;
         _session = [[AVCaptureSession alloc] init];
         __weak typeof(self)weakSelf = self;
+        NSLog(@"will enter seesion queue");
         dispatch_async(_sessionQueue, ^{
+            NSLog(@"enter seesion queue");
             __strong typeof(weakSelf)strongSelf = weakSelf;
             [strongSelf configureSesson: sessionPreset];
         });
@@ -148,6 +150,7 @@ typedef struct SYCameraDelegateCache {
 
 - (void)configureSesson:(AVCaptureSessionPreset)sessionPreset
 {
+    NSLog(@"configureSesson beginConfiguration");
     [_session beginConfiguration];
     [self configureVideoDeviceInput];
     [self configureAudioDeviceInput];
@@ -156,6 +159,7 @@ typedef struct SYCameraDelegateCache {
     
     [_session setSessionPreset:sessionPreset];
     [_session commitConfiguration];
+    NSLog(@"configureSesson commitConfiguration");
     [self exposureWithPoint:CGPointMake(0.5, 0.5) mode:AVCaptureExposureModeAutoExpose];
     [self setZoom:1.0];
 }

@@ -9,6 +9,7 @@
 #import "SYCamera.h"
 #import "SYPreviewView.h"
 #import "SYRecorder.h"
+#import "UIImage+SYImage.h"
 
 typedef struct SYCameraManagerDelegateCache {
     unsigned int cameraDidStarted : 1;
@@ -319,6 +320,9 @@ typedef struct SYCameraManagerDelegateCache {
             return;
         }
         UIImage *image = [[UIImage alloc] initWithData:imageData];
+        UIImage *fixImage = [image fixImageWithOrientation:image.imageOrientation withCropRect:CGRectZero];
+        
+        
         if (image == nil) {
             [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
             return;
