@@ -489,7 +489,7 @@ typedef struct SYCameraDelegateCache {
         
         AVCaptureConnection *photoOutputConnection = [self->_photoOutput connectionWithMediaType:AVMediaTypeVideo];
         if (photoOutputConnection) {
-            photoOutputConnection.videoOrientation = self.orientation;
+            //photoOutputConnection.videoOrientation = self.orientation;
             photoOutputConnection.videoMirrored = self.cameraPosition == AVCaptureDevicePositionFront;
         }
         

@@ -11,7 +11,7 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface UIImage (SYImage)
 
-- (UIImage *)fixImageWithOrientation:(UIImageOrientation)ori withCropRect:(CGRect)rect;
+- (UIImage *)fixImageWithOrientation:(UIImageOrientation)ori withRatio:(CGFloat)ratio;
 
 @end
 

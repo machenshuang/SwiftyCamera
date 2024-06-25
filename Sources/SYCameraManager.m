@@ -320,15 +320,16 @@ typedef struct SYCameraManagerDelegateCache {
             return;
         }
         UIImage *image = [[UIImage alloc] initWithData:imageData];
-        UIImage *fixImage = [image fixImageWithOrientation:image.imageOrientation withCropRect:CGRectZero];
+        CGFloat ratio = CGRectGetWidth(_previewView.frame) / CGRectGetHeight(_previewView.frame);
+        UIImage *fixImage = [image fixImageWithOrientation:image.imageOrientation withRatio:ratio];
         
         
-        if (image == nil) {
+        if (fixImage == nil) {
             [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
             return;
         }
         
-        [_delegate cameraDidFinishProcessingPhoto:image withMetaData:photo.metadata withManager:self withError:error];
+        [_delegate cameraDidFinishProcessingPhoto:fixImage withMetaData:photo.metadata withManager:self withError:error];
     }
 }
 
