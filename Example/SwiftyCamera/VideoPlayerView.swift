@@ -94,7 +94,7 @@ class VideoPlayerView: UIView {
         }
         // 创建AVPlayerLayer
         playerLayer = AVPlayerLayer(player: player)
-        playerLayer!.videoGravity = .resizeAspectFill
+        playerLayer!.videoGravity = .resizeAspect
         playerLayer!.frame = self.bounds
         self.layer.addSublayer(playerLayer!)
     }

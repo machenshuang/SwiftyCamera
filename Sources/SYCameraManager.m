@@ -34,9 +34,11 @@ typedef struct SYCameraManagerDelegateCache {
     SYCameraManagerDelegateCache _delegateCache;
     SYRecorder *_recorder;
     CGSize _sampleBufferSize;
+    BOOL _audioProcessing;
 }
 
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
+@property (nonatomic, assign, readwrite) SYRecordStatus recordStatus;
 
 @end
 
@@ -49,6 +51,7 @@ typedef struct SYCameraManagerDelegateCache {
         _sampleBufferSize = CGSizeMake(1080, 1920);
         _previewView = [SYPreviewView new];
         _deviceOrientation = UIDeviceOrientationPortrait;
+        _recordStatus = SYRecordNormal;
     }
     return self;
 }
@@ -56,12 +59,23 @@ typedef struct SYCameraManagerDelegateCache {
 - (void)requestCameraWithConfig:(SYCameraConfig *)config 
                  withCompletion:(void (^)(BOOL))completion
 {
+    self.isAuthority = YES;
     AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if (status != AVAuthorizationStatusAuthorized) {
         self.isAuthority = NO;
         completion(self.isAuthority);
         return;
     }
+    
+    if (config.mode == SYVideoMode) {
+        status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
+        if (status != AVAuthorizationStatusAuthorized) {
+            self.isAuthority = NO;
+            completion(self.isAuthority);
+            return;
+        }
+    }
+    
     AVCaptureSessionPreset preset = config.sessionPreset;
     AVCaptureDevicePosition position = config.devicePosition;
     SYCameraMode mode = config.mode;
@@ -69,12 +83,12 @@ typedef struct SYCameraManagerDelegateCache {
         position = AVCaptureDevicePositionBack;
     }
     
-    if (mode == SKModeUnspecified) {
-        mode = SKPhotoMode;
+    if (mode == SYModeUnspecified) {
+        mode = SYPhotoMode;
     }
     
     if (preset == nil) {
-        if (mode == SKPhotoMode) {
+        if (mode == SYPhotoMode) {
             preset = AVCaptureSessionPresetPhoto;
         } else {
             preset = AVCaptureSessionPresetHigh;
@@ -85,7 +99,6 @@ typedef struct SYCameraManagerDelegateCache {
     _camera.delegate = self;
     _previewView.session = _camera.session;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
-    self.isAuthority = YES;
     completion(self.isAuthority);
 }
 
@@ -95,13 +108,13 @@ typedef struct SYCameraManagerDelegateCache {
         return;
     }
     
-    if (mode == SKModeUnspecified) {
+    if (mode == SYModeUnspecified) {
         return;
     }
     
     AVCaptureSessionPreset sessionPreset; ;
     if (preset == nil) {
-        if (mode == SKPhotoMode) {
+        if (mode == SYPhotoMode) {
             sessionPreset = AVCaptureSessionPresetPhoto;
         } else {
             sessionPreset = AVCaptureSessionPresetHigh;
@@ -202,20 +215,23 @@ typedef struct SYCameraManagerDelegateCache {
     if (_camera == nil) {
         return;
     }
-    if (_recorder != nil) {
-        __weak typeof(self)weakSelf = self;
-        [self realStopRecordWithCompletion:^{
-            __strong typeof(weakSelf)strongSelf = weakSelf;
-            [strongSelf realStartRecord];
-        }];
-    } else {
-        [self realStartRecord];
+    if (_audioProcessing) {
+        return;
     }
+    _audioProcessing = YES;
+    __weak typeof(self)weakSelf = self;
+    [_camera addMicrophoneWith:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __strong typeof(weakSelf)strongSelf = weakSelf;
+            strongSelf->_recordStatus = SYRecording;
+            [strongSelf realStartRecord];
+            strongSelf->_audioProcessing = NO;
+        });
+    }];
 }
 
 - (void)realStartRecord
 {
-    
     SYRecordConfig *config = [[SYRecordConfig alloc] initWithSize:_sampleBufferSize];
     _recorder = [[SYRecorder alloc] initWithConfig:config];
     [_recorder startRecord];
@@ -227,10 +243,23 @@ typedef struct SYCameraManagerDelegateCache {
         return;
     }
     
-    if (_recorder) {
-        [self realStopRecordWithCompletion:^{}];
+    if (_audioProcessing) {
+        return;
     }
+    _audioProcessing = YES;
     
+    
+    __weak typeof(self)weakSelf = self;
+    [_camera removeMicrophoneWith:^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            __strong typeof(weakSelf)strongSelf = weakSelf;
+            strongSelf->_recordStatus = SYRecordNormal;
+            if (strongSelf->_recorder) {
+                [strongSelf realStopRecordWithCompletion:^{}];
+            }
+            strongSelf->_audioProcessing = NO;
+        });
+    }];
 }
 
 - (void)realStopRecordWithCompletion:(void(^)(void))completion
@@ -238,6 +267,7 @@ typedef struct SYCameraManagerDelegateCache {
     __weak typeof(self)weakSelf = self;
     [_recorder stopRecordWithCompletion:^(NSURL * _Nullable outputURL, BOOL ret) {
         __strong typeof(weakSelf)strongSelf = weakSelf;
+        strongSelf->_recorder = nil;
         dispatch_async(dispatch_get_main_queue(), ^{
             completion();
         });
@@ -249,16 +279,18 @@ typedef struct SYCameraManagerDelegateCache {
 
 - (void)pauseRecord
 {
-    if (_camera == nil) {
+    if (_camera == nil || _recorder == nil) {
         return;
     }
+    _recordStatus = SYRecordPause;
 }
 
 - (void)resumeRecord
 {
-    if (_camera == nil) {
+    if (_camera == nil || _recorder == nil) {
         return;
     }
+    _recordStatus = SYRecording;
 }
 
 - (UIImage *)imageFromPixelBuffer:(CVPixelBufferRef) pixelbuffer
@@ -307,6 +339,15 @@ typedef struct SYCameraManagerDelegateCache {
     return videoOrientation;
 }
 
+- (SYCameraMode)cameraMode
+{
+    if (_camera) {
+        return _camera.mode;
+    } else {
+        return SYModeUnspecified;
+    }
+}
+
 
 #pragma mark - SYCameraDelegate
 
@@ -347,10 +388,20 @@ typedef struct SYCameraManagerDelegateCache {
     }
 }
 
-- (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer
+- (void)cameraCaptureVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer
 {
+    if (_camera && _recorder && _camera.mode == SYVideoMode && _recordStatus == SYRecording) {
+        [_recorder appendVideo:sampleBuffer];
+    }
     if (_delegateCache.cameraDidOutputSampleBuffer) {
         [_delegate cameraDidOutputSampleBuffer:sampleBuffer withManager:self];
+    }
+}
+
+- (void)cameraCaptureAudioSampleBuffer:(CMSampleBufferRef)sampleBuffer
+{
+    if (_camera && _recorder && _camera.mode == SYVideoMode && _recordStatus == SYRecording) {
+        [_recorder appendAudio:sampleBuffer];
     }
 }
 
@@ -396,7 +447,7 @@ typedef struct SYCameraManagerDelegateCache {
     }
 }
 
-- (void)cameraWillCapturePhoto
+- (void)cameraWillProcessPhoto
 {
     if (_delegateCache.cameraWillCapturePhoto) {
         [_delegate cameraWillCapturePhoto:self];

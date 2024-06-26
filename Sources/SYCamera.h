@@ -19,7 +19,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *_Nullable)photo
                                  error:(NSError *_Nullable)error;
 @optional
-- (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
+- (void)cameraCaptureVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+- (void)cameraCaptureAudioSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 - (void)cameraDidChangePosition:(BOOL)backFacing error:(NSError *_Nullable)error;
 - (void)cameraDidChangeMode:(SYCameraMode)mode error:(NSError *_Nullable)error;
 - (void)cameraDidChangeFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode error:(NSError *_Nullable)error;
@@ -27,7 +28,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode error:(NSError *_Nullable)error;
 - (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode error:(NSError *_Nullable)error;
 - (void)cameraDidChangeEV:(CGFloat)value error:(NSError *_Nullable)error;
-- (void)cameraWillCapturePhoto;
+- (void)cameraWillProcessPhoto;
 
 @end
 
@@ -54,6 +55,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position;
 - (void)changeCameraMode:(SYCameraMode)mode
        withSessionPreset:(AVCaptureSessionPreset)sessionPreset;
+- (void)addMicrophoneWith:(void(^)(void))completion;
+- (void)removeMicrophoneWith:(void(^)(void))completion;
 - (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode;
 - (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode;
 - (void)takePhoto;

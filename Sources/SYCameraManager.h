@@ -68,6 +68,8 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nullable, nonatomic, weak) id<SYCameraManagerDelegate> delegate;
 @property (nonatomic, assign, readonly) BOOL isAuthority;
 @property (nonatomic, assign) UIDeviceOrientation deviceOrientation;
+@property (nonatomic, assign, readonly) SYRecordStatus recordStatus;
+@property (nonatomic, assign, readonly) SYCameraMode cameraMode;
 
 
 - (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
@@ -101,6 +103,12 @@ NS_ASSUME_NONNULL_BEGIN
 
 /// 拍照
 - (void)takePhoto;
+
+/// 开始录屏
+- (void)startRecord;
+
+/// 结束录屏
+- (void)stopRecord;
 
 
 

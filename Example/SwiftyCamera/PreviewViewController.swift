@@ -15,7 +15,12 @@ class PreviewViewController: UIViewController {
         return UIImageView(frame: .zero)
     }()
     
+    private lazy var videoView: VideoPlayerView = {
+        return VideoPlayerView(withURL: nil, frame: .zero)
+    }()
+    
     var image: UIImage?
+    var videoUrl: URL?
 
     override func viewDidLoad() {
         self.view.backgroundColor = .black
@@ -27,12 +32,20 @@ class PreviewViewController: UIViewController {
             imageView.snp.makeConstraints {
                 $0.edges.equalToSuperview()
             }
+        } else if let videoUrl = videoUrl {
+            view.addSubview(videoView)
+            videoView.updateUrl(url: videoUrl)
+            videoView.snp.makeConstraints {
+                $0.edges.equalToSuperview()
+            }
+            videoView.play()
         }
     }
     
     static func show(with params: [String: Any], from vc: UIViewController) {
         let target = PreviewViewController()
         target.image = params["image"] as? UIImage
+        target.videoUrl = params["videoUrl"] as? URL
         vc.navigationController?.pushViewController(target, animated: true)
     }
 

@@ -6,11 +6,13 @@
 //
 
 #import "SYCamera.h"
+#import "SYLog.h"
 
 typedef struct SYCameraDelegateCache {
     unsigned int cameraDidStarted : 1;
     unsigned int cameraDidStoped : 1;
-    unsigned int cameraDidOutputSampleBuffer : 1;
+    unsigned int cameraCaptureVideoSampleBuffer : 1;
+    unsigned int cameraCaptureAudioSampleBuffer : 1;
     unsigned int cameraDidFinishProcessingPhoto : 1;
     unsigned int changedPosition : 1;
     unsigned int changedFocus : 1;
@@ -18,16 +20,19 @@ typedef struct SYCameraDelegateCache {
     unsigned int changedExposure : 1;
     unsigned int changedFlash : 1;
     unsigned int changedEV : 1;
-    unsigned int cameraWillCacpturePhoto : 1;
+    unsigned int cameraWillProcessPhoto : 1;
     unsigned int cameraDidChangeMode: 1;
 } SYCameraDelegateCache;
 
-@interface SYCamera () <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate>
+static NSString *TAG = @"SYCamera";
+
+@interface SYCamera () <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate, AVCaptureAudioDataOutputSampleBufferDelegate>
 {
     AVCaptureDevice *_inputCamera;
     AVCaptureDeviceInput *_videoInput;
     AVCaptureDeviceInput *_audioInput;
     AVCaptureVideoDataOutput *_videoOutput;
+    AVCaptureAudioDataOutput *_audioOutput;
     AVCapturePhotoOutput *_photoOutput;
     
     dispatch_queue_t _sessionQueue;
@@ -91,7 +96,7 @@ typedef struct SYCameraDelegateCache {
     AVCaptureDevice *device;
     if (position == AVCaptureDevicePositionBack) {
         NSArray *deviceType;
-        if (_mode == SKElectronicScreen) {
+        if (_mode == SYElectronicScreen) {
             deviceType = @[AVCaptureDeviceTypeBuiltInWideAngleCamera];
         } else {
             if (@available(iOS 13.0, *)) {
@@ -116,7 +121,8 @@ typedef struct SYCameraDelegateCache {
     _delegate = delegate;
     _delegateCache.cameraDidStarted = [delegate respondsToSelector:@selector(cameraDidStarted:)];
     _delegateCache.cameraDidStoped = [delegate respondsToSelector:@selector(cameraDidStoped:)];
-    _delegateCache.cameraDidOutputSampleBuffer = [delegate respondsToSelector:@selector(cameraDidOutputSampleBuffer:)];
+    _delegateCache.cameraCaptureVideoSampleBuffer = [delegate respondsToSelector:@selector(cameraCaptureVideoSampleBuffer:)];
+    _delegateCache.cameraCaptureAudioSampleBuffer = [delegate respondsToSelector:@selector(cameraCaptureAudioSampleBuffer:)];
     _delegateCache.cameraDidFinishProcessingPhoto = [delegate respondsToSelector:@selector(cameraDidFinishProcessingPhoto:error:)];
     _delegateCache.changedPosition = [delegate respondsToSelector:@selector(cameraDidChangePosition:error:)];
     _delegateCache.changedFocus = [delegate respondsToSelector:@selector(cameraDidChangeFocus:mode:error:)];
@@ -124,7 +130,7 @@ typedef struct SYCameraDelegateCache {
     _delegateCache.changedExposure = [delegate respondsToSelector:@selector(cameraDidChangeExposure:mode:error:)];
     _delegateCache.changedFlash = [delegate respondsToSelector:@selector(camerahDidChangeFlash:error:)];
     _delegateCache.changedEV = [delegate respondsToSelector:@selector(cameraDidChangeEV:error:)];
-    _delegateCache.cameraWillCacpturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto)];
+    _delegateCache.cameraWillProcessPhoto = [delegate respondsToSelector:@selector(cameraWillProcessPhoto)];
     _delegateCache.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:error:)];
 }
 
@@ -153,7 +159,6 @@ typedef struct SYCameraDelegateCache {
     NSLog(@"configureSesson beginConfiguration");
     [_session beginConfiguration];
     [self configureVideoDeviceInput];
-    [self configureAudioDeviceInput];
     [self configureVideoOutput];
     [self configurePhotoOutput];
     
@@ -186,24 +191,58 @@ typedef struct SYCameraDelegateCache {
     }
 }
 
-- (void)configureAudioDeviceInput
+- (void)addMicrophoneWith:(void (^)(void))completion
 {
-    NSError *error = nil;
-    if (_mode == SKPhotoMode) {
-        if (_audioInput) {
-            [_session removeInput:_audioInput];
-            _audioInput = nil;
-        }
-    } else {
-        if (_audioInput == nil) {
+    __weak typeof(self)weakSelf = self;
+    dispatch_async(_sessionQueue, ^{
+        __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (strongSelf->_audioInput == nil) {
             AVCaptureDevice* audioDevice = [AVCaptureDevice defaultDeviceWithMediaType:AVMediaTypeAudio];
+            NSError *error = nil;
             AVCaptureDeviceInput* audioDeviceInput = [AVCaptureDeviceInput deviceInputWithDevice:audioDevice error:&error];
-            if ([_session canAddInput:audioDeviceInput]) {
-                [_session addInput:audioDeviceInput];
-                _audioInput = audioDeviceInput;
+            if (error) {
+                SYLog(TAG, "addMicrophoneWith deviceInputWithDevice error = %@", error.description);
+            }
+            if ([strongSelf->_session canAddInput:audioDeviceInput]) {
+                [strongSelf->_session addInput:audioDeviceInput];
+                strongSelf->_audioInput = audioDeviceInput;
+                SYLog(TAG, "configureAudioDeviceInput addAudioInput");
+            } else {
+                SYLog(TAG, "addMicrophoneWith can not addAudioInput");
             }
         }
-    }
+        
+        if (strongSelf->_audioOutput == nil) {
+            strongSelf->_audioOutput = [[AVCaptureAudioDataOutput alloc] init];
+            [strongSelf->_audioOutput setSampleBufferDelegate:self queue:strongSelf->_cameraProcessQueue];
+            if ([strongSelf->_session canAddOutput:strongSelf->_audioOutput]) {
+                [strongSelf->_session addOutput:strongSelf->_audioOutput];
+            } else {
+                SYLog(TAG, "addMicrophoneWith addAudioOutput");
+            }
+        }
+        completion();
+    });
+}
+
+- (void)removeMicrophoneWith:(void (^)(void))completion
+{
+    __weak typeof(self)weakSelf = self;
+    dispatch_async(_sessionQueue, ^{
+        __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (strongSelf->_audioInput) {
+            [strongSelf->_session removeInput:strongSelf->_audioInput];
+            strongSelf->_audioInput = nil;
+            SYLog(TAG, "removeMicrophoneWith removeAudioDevice");
+        }
+        
+        if (strongSelf->_audioOutput) {
+            [strongSelf->_session removeOutput:strongSelf->_audioOutput];
+            strongSelf->_audioOutput = nil;
+            SYLog(TAG, "removeMicrophoneWith removeAudioOutput");
+        }
+        completion();
+    });
 }
 
 - (void)configureVideoOutput
@@ -230,21 +269,13 @@ typedef struct SYCameraDelegateCache {
 
 - (void)configurePhotoOutput
 {
-    if (_mode == SKVideoMode) {
-        if (_photoOutput) {
-            [_session removeOutput:_photoOutput];
-            _photoOutput = nil;
-        }
-    } else {
-        if (_photoOutput == nil) {
-            _photoOutput = [AVCapturePhotoOutput new];
-            [_photoOutput setHighResolutionCaptureEnabled:YES];
-            if ([_session canAddOutput:_photoOutput]) {
-                [_session addOutput:_photoOutput];
-            }
+    if (_photoOutput == nil) {
+        _photoOutput = [AVCapturePhotoOutput new];
+        [_photoOutput setHighResolutionCaptureEnabled:YES];
+        if ([_session canAddOutput:_photoOutput]) {
+            [_session addOutput:_photoOutput];
         }
     }
-    
 }
 
 
@@ -358,7 +389,7 @@ typedef struct SYCameraDelegateCache {
 
 - (void)setExposureMode:(AVCaptureExposureMode)mode
 {
-    if (_mode == SKElectronicScreen) {
+    if (_mode == SYElectronicScreen) {
         if ([_inputCamera isExposureModeSupported:AVCaptureExposureModeCustom]) {
             _inputCamera.exposureMode = AVCaptureExposureModeCustom;
             CMTime min = _inputCamera.activeFormat.minExposureDuration;
@@ -475,7 +506,7 @@ typedef struct SYCameraDelegateCache {
     dispatch_async(_captureQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         
-        if (strongSelf->_mode != SKPhotoMode) {
+        if (strongSelf->_mode != SYPhotoMode) {
             return;
         }
         
@@ -519,14 +550,13 @@ typedef struct SYCameraDelegateCache {
 #pragma mark - AVCaptureVideoDataOutputSampleBufferDelegate
 - (void)captureOutput:(AVCaptureOutput *)output didOutputSampleBuffer:(CMSampleBufferRef)sampleBuffer fromConnection:(AVCaptureConnection *)connection
 {
-    CFRetain(sampleBuffer);
     
-    [self extractInfoFromSampleBuffer:sampleBuffer];
-    
-    if (_delegateCache.cameraDidOutputSampleBuffer) {
-        [_delegate cameraDidOutputSampleBuffer:sampleBuffer];
+    if ([output isKindOfClass: [AVCaptureVideoDataOutput class]] && _delegateCache.cameraCaptureVideoSampleBuffer){
+        [self extractInfoFromSampleBuffer:sampleBuffer];
+        [_delegate cameraCaptureVideoSampleBuffer:sampleBuffer];
+    } else if ([output isKindOfClass: [AVCaptureAudioDataOutput class]] && _delegateCache.cameraCaptureAudioSampleBuffer) {
+        [_delegate cameraCaptureAudioSampleBuffer:sampleBuffer];
     }
-    CFRelease(sampleBuffer);
 }
 
 #pragma mark - AVCapturePhotoCaptureDelegate
@@ -539,8 +569,8 @@ typedef struct SYCameraDelegateCache {
 
 - (void)captureOutput:(AVCapturePhotoOutput *)output willCapturePhotoForResolvedSettings:(AVCaptureResolvedPhotoSettings *)resolvedSettings
 {
-    if (_delegateCache.cameraWillCacpturePhoto) {
-        [self->_delegate cameraWillCapturePhoto];
+    if (_delegateCache.cameraWillProcessPhoto) {
+        [self->_delegate cameraWillProcessPhoto];
     }
 }
 

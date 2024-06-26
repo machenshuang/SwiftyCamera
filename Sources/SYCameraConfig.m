@@ -13,7 +13,7 @@
 {
     self = [super init];
     if (self) {
-        self.mode = SKModeUnspecified;
+        self.mode = SYModeUnspecified;
         self.sessionPreset = nil;
         self.devicePosition = AVCaptureDevicePositionUnspecified;
     }

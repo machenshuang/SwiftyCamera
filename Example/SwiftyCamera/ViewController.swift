@@ -19,6 +19,9 @@ class ViewController: UIViewController {
     private var filpBtn: UIButton!
     private var albumBtn: UIButton!
     
+    private var recordMode: SYRecordStatus = .recordNormal
+    private var cameraMode: SYCameraMode = .photoMode
+    
     private lazy var motion: CMMotionManager = {
        return CMMotionManager()
     }()
@@ -94,29 +97,61 @@ class ViewController: UIViewController {
         }
         
         cameraManager = SYCameraManager()
-        
+        self.requestVideoPermission { [weak self](ret) in
+            guard let `self` = self else {
+                return
+            }
+            guard ret else { return }
+            self.requestAudioPermission { [weak self](ret) in
+                guard let `self` = self else {
+                    return
+                }
+                guard ret else { return }
+                self.setupCamera()
+            }
+        }
+    }
+    
+    private func requestVideoPermission(completion: @escaping (Bool)->Void) {
         let status = AVCaptureDevice.authorizationStatus(for: .video)
         switch status {
         case .notDetermined:
             AVCaptureDevice.requestAccess(for: .video) { (ret) in
-                DispatchQueue.main.async { [weak self] in
-                    guard let `self` = self else { return }
-                    if ret {
-                        self.setupCamera()
-                    }
+                DispatchQueue.main.async {
+                    completion(ret)
                 }
                 
             }
         case .authorized:
-            self.setupCamera()
+            completion(true)
         default:
-            break
+            completion(false)
             
         }
     }
     
+    private func requestAudioPermission(completion: @escaping (Bool)->Void) {
+        let status = AVCaptureDevice.authorizationStatus(for: .audio)
+        switch status {
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .audio) { (ret) in
+                DispatchQueue.main.async {
+                    completion(ret)
+                }
+                
+            }
+        case .authorized:
+            completion(true)
+        default:
+            completion(false)
+            
+        }
+    }
+
     private func setupCamera() {
-        cameraManager.requestCamera(with: SYCameraConfig()) { [weak self](ret) in
+        let config = SYCameraConfig()
+        config.mode = cameraMode
+        cameraManager.requestCamera(with: config) { [weak self](ret) in
             guard let `self` = self else { return }
             if ret {
                 self.cameraManager.delegate = self
@@ -128,7 +163,20 @@ class ViewController: UIViewController {
     
     @objc private func takePhoto() {
         if cameraManager.isAuthority {
-            cameraManager.takePhoto()
+            switch cameraMode {
+            case .photoMode:
+                cameraManager.takePhoto()
+            case .videoMode:
+                if recordMode == .recording {
+                    cameraManager.stopRecord()
+                    recordMode = .recordNormal
+                } else {
+                    cameraManager.startRecord()
+                    recordMode = .recording
+                }
+            default:
+                break
+            }
         }
     }
     
@@ -143,7 +191,14 @@ class ViewController: UIViewController {
 
 extension ViewController: SYCameraManagerDelegate {
     func cameraDidFinishProcessingVideo(_ outputURL: URL?, with manager: SYCameraManager, withError error: Error?) {
-        
+        DispatchQueue.main.async { [weak self] in
+            guard let `self` = self else { return }
+            guard let outputURL = outputURL else {
+                return
+            }
+            
+            PreviewViewController.show(with: ["videoUrl": outputURL], from: self)
+        }
     }
     
     func cameraDidStarted(_ manager: SYCameraManager, withError error: Error?) {

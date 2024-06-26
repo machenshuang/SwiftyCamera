@@ -18,7 +18,8 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)stopRecordWithCompletion:(void(^)(NSURL * _Nullable, BOOL))completion;
 - (void)pauseRecord;
 - (void)resumeRecord;
-- (void)processSampleBuffer:(CMSampleBufferRef)sampleBuffer;
+- (void)appendVideo:(CMSampleBufferRef)sampleBuffer;
+- (void)appendAudio:(CMSampleBufferRef)sampleBuffer;
 
 @end
 

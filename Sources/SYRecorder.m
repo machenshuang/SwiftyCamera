@@ -7,6 +7,9 @@
 
 #import "SYRecorder.h"
 #import <AVFoundation/AVFoundation.h>
+#import "SYLog.h"
+
+static NSString * TAG = @"SYRecorder";
 
 @interface SYRecorder ()
 {
@@ -15,7 +18,6 @@
     AVAssetWriterInput *_audioWriterInput;
     AVAssetWriterInputPixelBufferAdaptor *_adaptor;
     dispatch_queue_t _recordQueue;
-    bool _resetTime;
     SYRecordConfig *_config;
     bool _canWriting;
 }
@@ -41,8 +43,7 @@
     dispatch_async(_recordQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         strongSelf->_canWriting = YES;
-        strongSelf->_resetTime = YES;
-        [strongSelf->_writer startWriting];
+        SYLog(TAG, "startRecord canWriting = %d", strongSelf->_canWriting);
     });
 }
 
@@ -52,11 +53,12 @@
     dispatch_async(_recordQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         strongSelf->_canWriting = NO;
-        strongSelf->_resetTime = YES;
+        SYLog(TAG, "stopRecordWithCompletion canWriting = %d", strongSelf->_canWriting);
         [strongSelf->_writer finishWritingWithCompletionHandler:^{
             if (strongSelf->_writer.status == AVAssetWriterStatusCompleted) {
                 completion(strongSelf->_writer.outputURL, YES);
             } else {
+                SYLog(TAG, "stopRecordWithCompletion failure, status = %ld", (long)strongSelf->_writer.status);
                 completion(nil, NO);
             }
         }];
@@ -69,6 +71,7 @@
     dispatch_async(_recordQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         strongSelf->_canWriting = NO;
+        SYLog(TAG, "startRecord canWriting = %d", strongSelf->_canWriting);
     });
 }
 
@@ -78,6 +81,7 @@
     dispatch_async(_recordQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         strongSelf->_canWriting = YES;
+        SYLog(TAG, "startRecord canWriting = %d", strongSelf->_canWriting);
     });
 }
 
@@ -89,75 +93,87 @@
         if (!strongSelf->_writer) {
             AVMediaType mediaType = AVFileTypeMPEG4;
             NSError *error;
+            
             strongSelf->_writer = [[AVAssetWriter alloc] initWithURL:[strongSelf getURL] fileType:mediaType error:&error];
             // 适合网络播放
             strongSelf->_writer.shouldOptimizeForNetworkUse = YES;
         }
         
-        [strongSelf addWriterInput];
+        [strongSelf addVideoWriterInput];
         [strongSelf addAudioWriterInput];
         [strongSelf configureAdaptor];
+        SYLog(TAG, "configure");
     });
     
 }
 
-- (void)processSampleBuffer:(CMSampleBufferRef)sampleBuffer
+- (void)appendVideo:(CMSampleBufferRef)sampleBuffer
 {
+    CFRetain(sampleBuffer);
     __weak typeof(self)weakSelf = self;
     dispatch_async(_recordQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         
         if (!strongSelf->_canWriting) {
+            CFRelease(sampleBuffer);
+            return;
+        }
+        CMTime timestamp = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
+        if (strongSelf->_writer.status == AVAssetWriterStatusUnknown) {
+            [strongSelf->_writer startWriting];
+            [strongSelf->_writer startSessionAtSourceTime:timestamp];
+            CFRelease(sampleBuffer);
+            SYLog(TAG, "appendVideo writer status is AVAssetWriterStatusUnknown");
             return;
         }
         
         if (strongSelf->_writer.status != AVAssetWriterStatusWriting) {
+            CFRelease(sampleBuffer);
+            SYLog(TAG, "appendVideo writer status is %ld, error = %@", (long)strongSelf->_writer.status, strongSelf->_writer.error.description);
             return;
         }
         
-        CMFormatDescriptionRef formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer);
-        if (formatDescription == NULL) {
+        if (!strongSelf->_videoWriterInput.isReadyForMoreMediaData) {
+            CFRelease(sampleBuffer);
+            SYLog(TAG, "appendVideo writer status is not readyForMoreMediaData");
             return;
         }
         
-        CMMediaType mediaType = CMFormatDescriptionGetMediaType(formatDescription);
-        
-        CMTime timesampe = CMSampleBufferGetPresentationTimeStamp(sampleBuffer);
-        
-        if (strongSelf->_resetTime) {
-            [strongSelf->_writer startSessionAtSourceTime:timesampe];
-            strongSelf->_resetTime = NO;
-        }
-        
-        switch (mediaType) {
-            case kCMMediaType_Video: {
-                [strongSelf processVideoSample:sampleBuffer withPresentationTime:timesampe];
-                break;
-            }
-            case kCMMediaType_Audio: {
-                [strongSelf processAudioSample:sampleBuffer];
-                break;
-            }
-            default: {
-                break;
-            }
-               
-        }
+        CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
+        [self->_adaptor appendPixelBuffer:pixelBuffer withPresentationTime:timestamp];
+        CFRelease(sampleBuffer);
     });
 }
 
-- (void)processVideoSample:(CMSampleBufferRef)sampleBuffer withPresentationTime:(CMTime)presentationTime
+- (void)appendAudio:(CMSampleBufferRef)sampleBuffer
 {
-    CVPixelBufferRef pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer);
-    [self->_adaptor appendPixelBuffer:pixelBuffer withPresentationTime:presentationTime];
+    CFRetain(sampleBuffer);
+    __weak typeof(self)weakSelf = self;
+    dispatch_async(_recordQueue, ^{
+        __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (!strongSelf->_canWriting) {
+            CFRelease(sampleBuffer);
+            return;
+        }
+        
+        if (strongSelf->_writer.status != AVAssetWriterStatusWriting) {
+            CFRelease(sampleBuffer);
+            SYLog(TAG, "appendAudio writer status is %ld", (long)strongSelf->_writer.status);
+            return;
+        }
+        
+        if (!strongSelf->_audioWriterInput.isReadyForMoreMediaData) {
+            CFRelease(sampleBuffer);
+            SYLog(TAG, "appendAudio writer status is not readyForMoreMediaData");
+            return;
+        }
+        
+        [strongSelf->_audioWriterInput appendSampleBuffer:sampleBuffer];
+        CFRelease(sampleBuffer);
+    });
 }
 
-- (void)processAudioSample:(CMSampleBufferRef)sampleBuffer
-{
-    [self->_audioWriterInput appendSampleBuffer:sampleBuffer];
-}
-
-- (void)addWriterInput
+- (void)addVideoWriterInput
 {
     if (!_videoWriterInput) {
         _videoWriterInput = [AVAssetWriterInput assetWriterInputWithMediaType:AVMediaTypeVideo outputSettings:[self fetchVideoSetting]];
@@ -166,6 +182,8 @@
     
     if ([_writer canAddInput:_videoWriterInput]) {
         [_writer addInput:_videoWriterInput];
+    } else {
+        SYLog(TAG, "addVideoWriterInput addInput failure");
     }
 }
 
@@ -178,6 +196,8 @@
     
     if ([_writer canAddInput:_audioWriterInput]) {
         [_writer addInput:_audioWriterInput];
+    } else {
+        SYLog(TAG, "addAudioWriterInput addInput failure");
     }
 }
 
@@ -195,10 +215,11 @@
 
 - (NSURL *)getURL
 {
-    NSError *error;
-    NSURL *documentURL = [[NSFileManager defaultManager] URLForDirectory:NSCachesDirectory inDomain:NSUserDomainMask appropriateForURL:nil create:NO error:&error];
-    NSString *filename = [NSString stringWithFormat:@"%d", (int)(CFAbsoluteTimeGetCurrent() * 1000)];
-    return [documentURL URLByAppendingPathComponent:filename];
+    NSString *filename = [NSString stringWithFormat:@"%ld", (long)(CFAbsoluteTimeGetCurrent() * 1000)];
+    NSString *path = [[NSTemporaryDirectory() stringByAppendingPathComponent:filename] stringByAppendingPathExtension:@"MP4"];
+    NSURL *documentURL = [[NSURL alloc] initFileURLWithPath:path];
+    SYLog(TAG, "getURL url = %@", documentURL.path);
+    return documentURL;
 }
 
 - (NSDictionary<NSString *, id> *)fetchVideoSetting
