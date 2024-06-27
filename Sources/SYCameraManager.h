@@ -61,6 +61,11 @@ NS_ASSUME_NONNULL_BEGIN
                 withManager:(SYCameraManager *)manager
                       error:(NSError *_Nullable)error;
 
+- (void)cameraRecordStatusDidChange:(SYRecordStatus)status
+                        withManager:(SYCameraManager *)manager
+                              error:(NSError *_Nullable)error;
+
+
 @end
 
 @interface SYCameraManager : NSObject

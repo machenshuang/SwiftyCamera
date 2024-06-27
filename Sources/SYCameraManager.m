@@ -25,6 +25,7 @@ typedef struct SYCameraManagerDelegateCache {
     unsigned int cameraWillCapturePhoto : 1;
     unsigned int cameraDidChangeMode: 1;
     unsigned int cameraDidFinishProcessingVideo: 1;
+    unsigned int cameraRecordStatusDidChange: 1;
 } SYCameraManagerDelegateCache;
 
 @interface SYCameraManager () <SYCameraDelegate>
@@ -159,6 +160,7 @@ typedef struct SYCameraManagerDelegateCache {
     _delegateCache.cameraWillCapturePhoto = [delegate respondsToSelector:@selector(cameraWillCapturePhoto:)];
     _delegateCache.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:withManager:error:)];
     _delegateCache.cameraDidFinishProcessingVideo = [delegate respondsToSelector:@selector(cameraDidFinishProcessingVideo:withManager:withError:)];
+    _delegateCache.cameraRecordStatusDidChange = [delegate respondsToSelector:@selector(cameraRecordStatusDidChange:withManager:error:)];
 }
 
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position 
@@ -213,9 +215,15 @@ typedef struct SYCameraManagerDelegateCache {
 - (void)startRecord
 {
     if (_camera == nil) {
+        if (_delegateCache.cameraRecordStatusDidChange) {
+            [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self error:nil];
+        }
         return;
     }
     if (_audioProcessing) {
+        if (_delegateCache.cameraRecordStatusDidChange) {
+            [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self error:nil];
+        }
         return;
     }
     _audioProcessing = YES;
@@ -226,6 +234,9 @@ typedef struct SYCameraManagerDelegateCache {
             strongSelf->_recordStatus = SYRecording;
             [strongSelf realStartRecord];
             strongSelf->_audioProcessing = NO;
+            if (strongSelf->_delegateCache.cameraRecordStatusDidChange) {
+                [strongSelf->_delegate cameraRecordStatusDidChange:strongSelf->_recordStatus withManager:strongSelf error:nil];
+            }
         });
     }];
 }
