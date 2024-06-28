@@ -9,7 +9,7 @@
 #define SYLog_h
 
 #ifdef DEBUG
-#define SYLog(tag, fmt, ...) NSLog((@"[SwiftyCamera][%@]" fmt), tag, ##__VA_ARGS__)
+#define SYLog(tag, fmt, ...) NSLog((@"[SwiftyCamera][%@] " fmt), tag, ##__VA_ARGS__)
 #else
 #define SYLog(tag, fmt, ...) do { } while (0)
 #endif

@@ -18,8 +18,8 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol SYCameraManagerDelegate <NSObject>
 
 @required
-- (void)cameraDidStarted:(SYCameraManager *)manager withError:(NSError *_Nullable)error;
-- (void)cameraDidStoped:(SYCameraManager *)manager withError:(NSError *_Nullable)error;
+- (void)cameraDidStarted:(SYCameraManager *)manager;
+- (void)cameraDidStoped:(SYCameraManager *)manager;
 - (void)cameraDidFinishProcessingPhoto:(UIImage *_Nullable)image
                           withMetaData:(NSDictionary *_Nullable)metaData
                            withManager:(SYCameraManager *)manager
@@ -28,42 +28,33 @@ NS_ASSUME_NONNULL_BEGIN
                            withManager:(SYCameraManager *)manager
                              withError:(NSError *_Nullable)error;
 @optional
-- (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer
-                        withManager:(SYCameraManager *)manager;
+- (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
 
 - (void)cameraDidChangedPosition:(BOOL)backFacing
-                     withManager:(SYCameraManager *)manager
-                       withError:(NSError *_Nullable)error;
+                     withManager:(SYCameraManager *)manager;
 
 - (void)cameraDidChangedFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode
-                  withManager:(SYCameraManager *)manager
-                    withError:(NSError *_Nullable)error;
+                  withManager:(SYCameraManager *)manager;
 
 - (void)cameraDidChangedZoom:(CGFloat)value
-                 withManager:(SYCameraManager *)manager
-                   withError:(NSError *_Nullable)error;
+                 withManager:(SYCameraManager *)manager;
 
 - (void)cameraDidChangedExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode
-                     withManager:(SYCameraManager *)manager
-                       withError:(NSError *_Nullable)error;
+                     withManager:(SYCameraManager *)manager;
 
 - (void)camerahDidChangedFlash:(AVCaptureFlashMode)mode
-                   withManager:(SYCameraManager *)manager
-                     withError:(NSError *_Nullable)error;
+                   withManager:(SYCameraManager *)manager;
 
 - (void)cameraDidChangedEV:(CGFloat)value
-               withManager:(SYCameraManager *)manager
-                 withError:(NSError *_Nullable)error;
+               withManager:(SYCameraManager *)manager;
 
 - (void)cameraWillCapturePhoto:(SYCameraManager *)manager;
 
 - (void)cameraDidChangeMode:(SYCameraMode)mode
-                withManager:(SYCameraManager *)manager
-                      error:(NSError *_Nullable)error;
+                withManager:(SYCameraManager *)manager;
 
 - (void)cameraRecordStatusDidChange:(SYRecordStatus)status
-                        withManager:(SYCameraManager *)manager
-                              error:(NSError *_Nullable)error;
+                        withManager:(SYCameraManager *)manager;
 
 
 @end

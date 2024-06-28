@@ -18,9 +18,19 @@ class ViewController: UIViewController {
     private var shutterBtn: UIButton!
     private var filpBtn: UIButton!
     private var albumBtn: UIButton!
+    private var recordBtn: UIButton!
+    private var cameraModeControl: UISegmentedControl!
     
-    private var recordMode: SYRecordStatus = .recordNormal
-    private var cameraMode: SYCameraMode = .photoMode
+    private var recordMode: SYRecordStatus = .recordNormal {
+        didSet {
+            refreshRecordUI()
+        }
+    }
+    private var cameraMode: SYCameraMode = .photoMode {
+        didSet {
+            refreshCameraModeUI()
+        }
+    }
     
     private lazy var motion: CMMotionManager = {
        return CMMotionManager()
@@ -32,6 +42,7 @@ class ViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = UIColor.black
         setup()
+        cameraMode = .photoMode
     }
     
     override func viewDidAppear(_ animated: Bool) {
@@ -94,6 +105,24 @@ class ViewController: UIViewController {
             $0.width.height.equalTo(48)
             $0.trailing.equalToSuperview().offset(-16)
             $0.centerY.equalTo(shutterBtn)
+        }
+        
+        cameraModeControl = UISegmentedControl(items: [UIImage(named: "icon_photo_selector")!, UIImage(named: "icon_movie_selector")!])
+        cameraModeControl.selectedSegmentIndex = 0
+        cameraModeControl.addTarget(self, action: #selector(changeCameraMode(_:)), for: .valueChanged)
+        view.addSubview(cameraModeControl)
+        cameraModeControl.snp.makeConstraints {
+            $0.bottom.equalTo(shutterBtn.snp.top).offset(-20)
+            $0.centerX.equalToSuperview()
+            $0.size.equalTo(CGSize(width: 80, height: 40))
+        }
+        
+        recordBtn = UIButton(type: .custom)
+        recordBtn.setImage(UIImage(named: "icon_start_record"), for: .normal)
+        recordBtn.addTarget(self, action: #selector(handleRecordEvent(_:)), for: .touchUpInside)
+        view.addSubview(recordBtn)
+        recordBtn.snp.makeConstraints {
+            $0.edges.equalTo(shutterBtn)
         }
         
         cameraManager = SYCameraManager()
@@ -161,23 +190,34 @@ class ViewController: UIViewController {
         }
     }
     
-    @objc private func takePhoto() {
-        if cameraManager.isAuthority {
-            switch cameraMode {
-            case .photoMode:
-                cameraManager.takePhoto()
-            case .videoMode:
-                if recordMode == .recording {
-                    cameraManager.stopRecord()
-                    recordMode = .recordNormal
-                } else {
-                    cameraManager.startRecord()
-                    recordMode = .recording
-                }
-            default:
-                break
-            }
+    private func refreshRecordUI() {
+        if recordMode == .recordNormal {
+            recordBtn.setImage(UIImage(named: "icon_start_record"), for: .normal)
+        } else {
+            recordBtn.setImage(UIImage(named: "icon_stop_record"), for: .normal)
         }
+    }
+    
+    private func refreshCameraModeUI() {
+        if cameraMode == .photoMode {
+            recordBtn.isHidden = true
+            shutterBtn.isHidden = false
+            filpBtn.isHidden = false
+            cameraModeControl.selectedSegmentIndex = 0
+        } else if cameraMode == .videoMode {
+            recordBtn.isHidden = false
+            shutterBtn.isHidden = true
+            filpBtn.isHidden = true
+            cameraModeControl.selectedSegmentIndex = 1
+        }
+        
+    }
+    
+    @objc private func takePhoto() {
+        if !cameraManager.isAuthority {
+            return
+        }
+        cameraManager.takePhoto()
     }
     
     @objc private func cameraFilp() {
@@ -187,9 +227,39 @@ class ViewController: UIViewController {
         }
     }
 
+    @objc private func changeCameraMode(_ control: UISegmentedControl) {
+        if !cameraManager.isAuthority {
+            return
+        }
+        if control.selectedSegmentIndex == 0 {
+            cameraManager.changeCameraMode(.photoMode, withSessionPreset: nil)
+        } else if control.selectedSegmentIndex == 1 {
+            cameraManager.changeCameraMode(.videoMode, withSessionPreset: nil)
+        }
+    }
+    
+    @objc private func handleRecordEvent(_ button: UIButton) {
+        if !cameraManager.isAuthority {
+            return
+        }
+        if recordMode == .recordNormal {
+            cameraManager.startRecord()
+        } else {
+            cameraManager.stopRecord()
+        }
+    }
 }
 
 extension ViewController: SYCameraManagerDelegate {
+    
+    func cameraDidStarted(_ manager: SYCameraManager) {
+        
+    }
+    
+    func cameraDidStoped(_ manager: SYCameraManager) {
+        
+    }
+    
     func cameraDidFinishProcessingVideo(_ outputURL: URL?, with manager: SYCameraManager, withError error: Error?) {
         DispatchQueue.main.async { [weak self] in
             guard let `self` = self else { return }
@@ -199,14 +269,6 @@ extension ViewController: SYCameraManagerDelegate {
             
             PreviewViewController.show(with: ["videoUrl": outputURL], from: self)
         }
-    }
-    
-    func cameraDidStarted(_ manager: SYCameraManager, withError error: Error?) {
-        debugPrint("ViewController cameraDidStarted error = \(String(describing: error))")
-    }
-    
-    func cameraDidStoped(_ manager: SYCameraManager, withError error: Error?) {
-        debugPrint("ViewController cameraDidStoped error = \(String(describing: error))")
     }
     
     func cameraDidFinishProcessingPhoto(_ image: UIImage?, withMetaData metaData: [AnyHashable : Any]?, with manager: SYCameraManager, withError error: Error?) {
@@ -220,6 +282,19 @@ extension ViewController: SYCameraManagerDelegate {
         }
     }
     
+    
+    func cameraDidChange(_ mode: SYCameraMode, with manager: SYCameraManager) {
+        DispatchQueue.main.async {
+            self.cameraMode = mode
+        }
+        
+    }
+    
+    func cameraRecordStatusDidChange(_ status: SYRecordStatus, with manager: SYCameraManager) {
+        DispatchQueue.main.async {
+            self.recordMode = status;
+        }
+    }
     
     
     
