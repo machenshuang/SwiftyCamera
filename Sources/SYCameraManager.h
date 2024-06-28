@@ -67,6 +67,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) SYRecordStatus recordStatus;
 @property (nonatomic, assign, readonly) SYCameraMode cameraMode;
 
+@property (nonatomic, assign, readonly) CGFloat zoom;
+@property (nonatomic, assign, readonly) CGFloat minZoom;
+@property (nonatomic, assign, readonly) CGFloat maxZoom;
 
 - (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
 
@@ -85,6 +88,20 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)changeCameraMode:(SYCameraMode)mode
        withSessionPreset:(nullable AVCaptureSessionPreset)preset;
 
+
+/// 调整相机焦距
+/// - Parameters:
+///   - point: 焦距位置
+///   - mode: 模式
+- (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode;
+
+
+/// 调整相机曝光
+/// - Parameters:
+///   - point: 曝光位置
+///   - mode: 模式
+- (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode;
+
 /// 拍照
 - (void)takePhoto;
 
@@ -95,6 +112,11 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)stopRecord;
 
 
+/// 调整缩放值
+/// - Parameters:
+///   - zoom: value
+///   - animated: 是否带动画
+- (void)setZoom:(CGFloat)zoom withAnimated:(BOOL)animated;
 
 @end
 

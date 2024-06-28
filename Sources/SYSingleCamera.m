@@ -183,13 +183,17 @@ static NSString *TAG = @"SYSingleCamera";
     dispatch_async(self.sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         CGFloat value = zoom;
+        CGFloat minZoom = [strongSelf minZoom];
+        CGFloat maxZoom = [strongSelf maxZoom];
         if (@available(iOS 13.0, *)) {
             if (strongSelf->_inputCamera.deviceType == AVCaptureDeviceTypeBuiltInTripleCamera || strongSelf->_inputCamera.deviceType == AVCaptureDeviceTypeBuiltInDualWideCamera) {
                 value *= 2;
+                minZoom *= 2;
             }
         }
-        if (value < 1.0 || value > [strongSelf maxZoom]) {
-            SYLog(TAG, "setZoom failure value = %f，maxZoom = %f", value, [strongSelf maxZoom]);
+        
+        if (value < minZoom || value > maxZoom) {
+            SYLog(TAG, "setZoom failure value = %f，minZoom = %f, maxZoom = %f", value, minZoom, maxZoom);
             return;
         }
         if (value == [strongSelf zoom]) {

@@ -41,6 +41,10 @@ typedef struct SYCameraManagerDelegateMap {
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
 @property (nonatomic, assign, readwrite) SYRecordStatus recordStatus;
 
+@property (nonatomic, assign, readwrite) CGFloat zoom;
+@property (nonatomic, assign, readwrite) CGFloat minZoom;
+@property (nonatomic, assign, readwrite) CGFloat maxZoom;
+
 @end
 
 @implementation SYCameraManager
@@ -106,8 +110,6 @@ typedef struct SYCameraManagerDelegateMap {
 - (void)configurePreviewView
 {
     _previewView = [SYPreviewView new];
-    UITapGestureRecognizer *tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapGestureEvent:)];
-    [_previewView addGestureRecognizer:tapRecognizer];
 }
 
 - (void)changeCameraMode:(SYCameraMode)mode withSessionPreset:(AVCaptureSessionPreset)preset
@@ -372,13 +374,37 @@ typedef struct SYCameraManagerDelegateMap {
     }
 }
 
-- (void)handleTapGestureEvent:(UITapGestureRecognizer *)recognizer
+- (CGFloat)zoom
 {
-    CGPoint point = [recognizer locationInView:_previewView];
-    [self focusWithPoint:point mode:AVCaptureFocusModeAutoFocus];
-    [self exposureWithPoint:point mode:AVCaptureExposureModeAutoExpose];
+    if (!_camera) {
+        return 0.0;
+    }
+    return [_camera zoom];
 }
 
+- (CGFloat)minZoom
+{
+    if (!_camera) {
+        return 0.0;
+    }
+    return [_camera minZoom];
+}
+
+- (CGFloat)maxZoom
+{
+    if (!_camera) {
+        return 0.0;
+    }
+    return [_camera maxZoom];
+}
+
+- (void)setZoom:(CGFloat)zoom withAnimated:(BOOL)animated
+{
+    if (!_camera) {
+        return;
+    }
+    [_camera setZoom:zoom withAnimated:animated];
+}
 
 #pragma mark - SYCameraDelegate
 

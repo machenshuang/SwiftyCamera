@@ -20,6 +20,7 @@ class ViewController: UIViewController {
     private var albumBtn: UIButton!
     private var recordBtn: UIButton!
     private var cameraModeControl: UISegmentedControl!
+    private var currentZoom: CGFloat = 0.0
     
     private var recordMode: SYRecordStatus = .recordNormal {
         didSet {
@@ -71,6 +72,10 @@ class ViewController: UIViewController {
         previewView = UIView(frame: .zero)
         previewView.backgroundColor = UIColor.white
         view.addSubview(previewView)
+        let tapRecognzer = UITapGestureRecognizer(target: self, action: #selector(handleTapEvent(_:)))
+        previewView.addGestureRecognizer(tapRecognzer)
+        let pinchRecognizer = UIPinchGestureRecognizer(target: self, action: #selector(handlePinchEvent(_:)))
+        previewView.addGestureRecognizer(pinchRecognizer)
         
         previewView.snp.makeConstraints {
             $0.width.equalToSuperview()
@@ -193,8 +198,10 @@ class ViewController: UIViewController {
     private func refreshRecordUI() {
         if recordMode == .recordNormal {
             recordBtn.setImage(UIImage(named: "icon_start_record"), for: .normal)
+            filpBtn.isHidden = false
         } else {
             recordBtn.setImage(UIImage(named: "icon_stop_record"), for: .normal)
+            filpBtn.isHidden = true
         }
     }
     
@@ -202,12 +209,10 @@ class ViewController: UIViewController {
         if cameraMode == .photoMode {
             recordBtn.isHidden = true
             shutterBtn.isHidden = false
-            filpBtn.isHidden = false
             cameraModeControl.selectedSegmentIndex = 0
         } else if cameraMode == .videoMode {
             recordBtn.isHidden = false
             shutterBtn.isHidden = true
-            filpBtn.isHidden = true
             cameraModeControl.selectedSegmentIndex = 1
         }
         
@@ -248,6 +253,28 @@ class ViewController: UIViewController {
             cameraManager.stopRecord()
         }
     }
+    
+    @objc private func handleTapEvent(_ sender: UITapGestureRecognizer) {
+        if !cameraManager.isAuthority {
+            return
+        }
+        let point = sender.location(in: previewView)
+        cameraManager.focus(with: point, mode: .autoFocus)
+        cameraManager.exposure(with: point, mode: .autoExpose)
+    }
+    
+    @objc private func handlePinchEvent(_ sender: UIPinchGestureRecognizer) {
+        
+        if !cameraManager.isAuthority {
+            return
+        }
+        
+        let scale = sender.scale
+        currentZoom = scale;
+        cameraManager.setZoom(currentZoom, withAnimated: true)
+    }
+    
+    
 }
 
 extension ViewController: SYCameraManagerDelegate {
@@ -296,7 +323,17 @@ extension ViewController: SYCameraManagerDelegate {
         }
     }
     
+    func cameraDidChangedFocus(_ value: CGPoint, mode: AVCaptureDevice.FocusMode, with manager: SYCameraManager) {
+        print("ViewController cameraDidChangedFocus value = \(value), mode = \(mode)")
+    }
     
+    func cameraDidChangedExposure(_ value: CGPoint, mode: AVCaptureDevice.ExposureMode, with manager: SYCameraManager) {
+        print("ViewController cameraDidChangedExposure value = \(value), mode = \(mode)")
+    }
+    
+    func cameraDidChangedZoom(_ value: CGFloat, with manager: SYCameraManager) {
+        print("ViewController cameraDidChangedZoom value = \(value)")
+    }
     
 }
 
