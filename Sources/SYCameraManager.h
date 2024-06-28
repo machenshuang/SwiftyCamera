@@ -85,18 +85,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)changeCameraMode:(SYCameraMode)mode
        withSessionPreset:(nullable AVCaptureSessionPreset)preset;
 
-/// 调整焦点
-/// - Parameters:
-///   - point: CGPoint
-///   - mode: AVCaptureFocusMode
-- (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode;
-
-/// 调整曝光
-/// - Parameters:
-///   - point: CGPoint
-///   - mode: AVCaptureExposureMode
-- (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode;
-
 /// 拍照
 - (void)takePhoto;
 

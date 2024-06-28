@@ -11,7 +11,7 @@
 #import "SYRecorder.h"
 #import "UIImage+SYImage.h"
 
-typedef struct SYCameraManagerDelegateCache {
+typedef struct SYCameraManagerDelegateMap {
     unsigned int cameraDidStarted : 1;
     unsigned int cameraDidStoped : 1;
     unsigned int cameraDidOutputSampleBuffer : 1;
@@ -26,14 +26,13 @@ typedef struct SYCameraManagerDelegateCache {
     unsigned int cameraDidChangeMode: 1;
     unsigned int cameraDidFinishProcessingVideo: 1;
     unsigned int cameraRecordStatusDidChange: 1;
-    unsigned int camera
-} SYCameraManagerDelegateCache;
+} SYCameraManagerDelegateMap;
 
 @interface SYCameraManager () <SYCameraDelegate>
 {
     SYBaseCamera *_camera;
     SYPreviewView *_previewView;
-    SYCameraManagerDelegateCache _delegateCache;
+    SYCameraManagerDelegateMap _delegateCache;
     SYRecorder *_recorder;
     CGSize _sampleBufferSize;
     BOOL _audioProcessing;
@@ -51,7 +50,7 @@ typedef struct SYCameraManagerDelegateCache {
     self = [super init];
     if (self) {
         _sampleBufferSize = CGSizeMake(1080, 1920);
-        _previewView = [SYPreviewView new];
+        [self configurePreviewView];
         _deviceOrientation = UIDeviceOrientationPortrait;
         _recordStatus = SYRecordNormal;
     }
@@ -102,6 +101,13 @@ typedef struct SYCameraManagerDelegateCache {
     _previewView.session = _camera.session;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
     completion(self.isAuthority);
+}
+
+- (void)configurePreviewView
+{
+    _previewView = [SYPreviewView new];
+    UITapGestureRecognizer *tapRecognizer = [[UITapGestureRecognizer alloc] initWithTarget:self action:@selector(handleTapGestureEvent:)];
+    [_previewView addGestureRecognizer:tapRecognizer];
 }
 
 - (void)changeCameraMode:(SYCameraMode)mode withSessionPreset:(AVCaptureSessionPreset)preset
@@ -364,6 +370,13 @@ typedef struct SYCameraManagerDelegateCache {
     } else {
         return SYModeUnspecified;
     }
+}
+
+- (void)handleTapGestureEvent:(UITapGestureRecognizer *)recognizer
+{
+    CGPoint point = [recognizer locationInView:_previewView];
+    [self focusWithPoint:point mode:AVCaptureFocusModeAutoFocus];
+    [self exposureWithPoint:point mode:AVCaptureExposureModeAutoExpose];
 }
 
 
