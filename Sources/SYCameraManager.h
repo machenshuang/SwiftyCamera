@@ -18,12 +18,33 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol SYCameraManagerDelegate <NSObject>
 
 @required
+
+/// 相机已启动
+/// - Parameter manager: SYCameraManager
 - (void)cameraDidStarted:(SYCameraManager *)manager;
+
+
+/// 相机已停止
+/// - Parameter manager: SYCameraManager
 - (void)cameraDidStoped:(SYCameraManager *)manager;
+
+
+/// 相机拍照结果
+/// - Parameters:
+///   - image: 图片
+///   - metaData: 摘要
+///   - manager: SYCameraManager
+///   - error: 错误
 - (void)cameraDidFinishProcessingPhoto:(UIImage *_Nullable)image
                           withMetaData:(NSDictionary *_Nullable)metaData
                            withManager:(SYCameraManager *)manager
                              withError:(NSError *_Nullable)error;
+
+/// 相机录制结果
+/// - Parameters:
+///   - outputURL: 保存路径
+///   - manager: SYCameraManager
+///   - error: error
 - (void)cameraDidFinishProcessingVideo:(NSURL *_Nullable)outputURL
                            withManager:(SYCameraManager *)manager
                              withError:(NSError *_Nullable)error;
@@ -71,8 +92,16 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) CGFloat minZoom;
 @property (nonatomic, assign, readonly) CGFloat maxZoom;
 
+
+/// 创建相机
+/// - Parameters:
+///   - config: SYCameraConfig
+///   - completion: 创建回调
 - (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
 
+
+/// 将预览视图添加到 View 上
+/// - Parameter view: 展示的 View
 - (void)addPreviewToView:(UIView *)view;
 
 /// 启动相机流
@@ -85,6 +114,11 @@ NS_ASSUME_NONNULL_BEGIN
 /// - Parameter position: AVCaptureDevicePosition
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position;
 
+
+/// 切换模式
+/// - Parameters:
+///   - mode: SYCameraMode
+///   - preset: AVCaptureSessionPreset
 - (void)changeCameraMode:(SYCameraMode)mode
        withSessionPreset:(nullable AVCaptureSessionPreset)preset;
 

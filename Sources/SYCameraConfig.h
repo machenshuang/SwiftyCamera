@@ -10,11 +10,11 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
+// 相机模式
 typedef NS_ENUM(NSUInteger, SYCameraMode) {
-    SYPhotoMode,
-    SYVideoMode,
-    SYElectronicScreen,
-    SYModeUnspecified,
+    SYPhotoMode,    // 拍照模式
+    SYVideoMode,    // 录制模式
+    SYModeUnspecified,  // 未定义模式
 };
 
 typedef NS_ENUM(NSUInteger, SYRecordStatus) {
