@@ -7,6 +7,7 @@
 
 #import "SYBaseCamera.h"
 #import "SYLog.h"
+#import "SYSingleCamera.h"
 
 static NSString *TAG = @"SYBaseCamera";
 
@@ -27,6 +28,40 @@ static NSString *TAG = @"SYBaseCamera";
 
 
 @implementation SYBaseCamera
+
++ (SYBaseCamera *)createCameraWithConfig:(SYCameraConfig *)config
+{
+    SYBaseCamera *camera;
+    AVCaptureSessionPreset preset = config.sessionPreset;
+    AVCaptureDevicePosition position = config.devicePosition;
+    SYCameraMode mode = config.mode;
+    if (position == AVCaptureDevicePositionUnspecified) {
+        position = AVCaptureDevicePositionBack;
+    }
+    
+    if (mode == SYModeUnspecified) {
+        mode = SYPhotoMode;
+    }
+    
+    if (preset == nil) {
+        if (mode == SYPhotoMode) {
+            preset = AVCaptureSessionPresetPhoto;
+        } else {
+            preset = AVCaptureSessionPresetHigh;
+        }
+    }
+    switch (config.type) {
+        case SYSingleDevice: {
+            camera = [[SYSingleCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode];
+            break;
+        }
+        case SYDualDevice: {
+            camera = [[SYSingleCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode];
+            break;
+        }
+    }
+    return camera;
+}
 
 - (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
                        cameraPosition:(AVCaptureDevicePosition)cameraPosition
@@ -78,6 +113,7 @@ static NSString *TAG = @"SYBaseCamera";
     _delegateMap.changedEV = [delegate respondsToSelector:@selector(cameraDidChangeEV:)];
     _delegateMap.cameraWillProcessPhoto = [delegate respondsToSelector:@selector(cameraWillProcessPhoto)];
     _delegateMap.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:)];
+    _delegateMap.getVideoPreviewLayerForPosition = [delegate respondsToSelector:@selector(getVideoPreviewLayerForPosition:)];
 }
 
 - (void)changeCameraMode:(SYCameraMode)mode
@@ -107,8 +143,9 @@ static NSString *TAG = @"SYBaseCamera";
     [self configureVideoDeviceInput];
     [self configureVideoOutput];
     [self configurePhotoOutput];
-    
-    [_session setSessionPreset:sessionPreset];
+    if ([_session isKindOfClass:[AVCaptureSession class]]) {
+        [_session setSessionPreset:sessionPreset];
+    }
     [_session commitConfiguration];
     [self exposureWithPoint:CGPointMake(0.5, 0.5) mode:AVCaptureExposureModeAutoExpose];
     [self setZoom:1.0 withAnimated:NO];
@@ -339,14 +376,10 @@ static NSString *TAG = @"SYBaseCamera";
     AVCaptureDevice *device;
     if (position == AVCaptureDevicePositionBack) {
         NSArray *deviceType;
-        if (self.mode == SYElectronicScreen) {
-            deviceType = @[AVCaptureDeviceTypeBuiltInWideAngleCamera];
+        if (@available(iOS 13.0, *)) {
+            deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
         } else {
-            if (@available(iOS 13.0, *)) {
-                deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
-            } else {
-                deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
-            }
+            deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
         }
         
         AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];

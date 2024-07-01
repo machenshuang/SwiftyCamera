@@ -18,7 +18,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)cameraDidStoped;
 - (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *_Nullable)photo
                                  error:(NSError *_Nullable)error;
-@optional
+
 - (void)cameraCaptureVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 - (void)cameraCaptureAudioSampleBuffer:(CMSampleBufferRef)sampleBuffer;
 - (void)cameraDidChangePosition:(BOOL)backFacing;
@@ -29,6 +29,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode;
 - (void)cameraDidChangeEV:(CGFloat)value;
 - (void)cameraWillProcessPhoto;
+- (AVCaptureVideoPreviewLayer *)getVideoPreviewLayerForPosition:(AVCaptureDevicePosition)position;
 
 @end
 
@@ -46,6 +47,7 @@ typedef struct SYCameraDelegateMap {
     unsigned int changedEV : 1;
     unsigned int cameraWillProcessPhoto : 1;
     unsigned int cameraDidChangeMode: 1;
+    unsigned int getVideoPreviewLayerForPosition: 1;
 } SYCameraDelegateMap;
 
 @interface SYBaseCamera : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate, AVCaptureAudioDataOutputSampleBufferDelegate>
@@ -66,6 +68,8 @@ typedef struct SYCameraDelegateMap {
 
 
 @property (nullable, nonatomic, weak) id<SYCameraDelegate> delegate;
+
++(SYBaseCamera *)createCameraWithConfig:(SYCameraConfig *)config;
 
 - (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
                        cameraPosition:(AVCaptureDevicePosition)cameraPosition

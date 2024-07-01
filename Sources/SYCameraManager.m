@@ -81,26 +81,7 @@ typedef struct SYCameraManagerDelegateMap {
         }
     }
     
-    AVCaptureSessionPreset preset = config.sessionPreset;
-    AVCaptureDevicePosition position = config.devicePosition;
-    SYCameraMode mode = config.mode;
-    if (position == AVCaptureDevicePositionUnspecified) {
-        position = AVCaptureDevicePositionBack;
-    }
-    
-    if (mode == SYModeUnspecified) {
-        mode = SYPhotoMode;
-    }
-    
-    if (preset == nil) {
-        if (mode == SYPhotoMode) {
-            preset = AVCaptureSessionPresetPhoto;
-        } else {
-            preset = AVCaptureSessionPresetHigh;
-        }
-    }
-    
-    _camera = [[SYSingleCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode];
+    _camera = [SYBaseCamera createCameraWithConfig:config];
     _camera.delegate = self;
     _previewView.session = _camera.session;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
@@ -516,6 +497,11 @@ typedef struct SYCameraManagerDelegateMap {
     if (_delegateCache.cameraDidChangeMode) {
         [_delegate cameraDidChangeMode:mode withManager:self];
     }
+}
+
+- (AVCaptureVideoPreviewLayer *)getVideoPreviewLayerForPosition:(AVCaptureDevicePosition)position
+{
+    return _previewView.previewLayer;
 }
 
 
