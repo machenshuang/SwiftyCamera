@@ -13,7 +13,7 @@ import SnapKit
 class ViewController: UIViewController {
     
     private var tableView: UITableView!
-    private var items: [String] = ["普通相机"]
+    private var items: [String] = ["普通相机", "双摄相机"]
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -54,6 +54,9 @@ extension ViewController: UITableViewDelegate, UITableViewDataSource {
         switch indexPath.row {
         case 0:
             self.navigationController?.pushViewController(SingleViewController(), animated: true)
+            break
+        case 1:
+            self.navigationController?.pushViewController(DualViewController(), animated: true)
             break
         default:
             break

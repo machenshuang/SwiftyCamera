@@ -145,7 +145,11 @@ static NSString *TAG = @"SYBaseCamera";
     [self setupVideoDeviceInput];
     [self setupVideoOutput];
     [self setupPhotoOutput];
-    if ([_session isKindOfClass:[AVCaptureSession class]]) {
+    if (@available(iOS 13.0, *)) {
+        if (![_session isKindOfClass:[AVCaptureMultiCamSession class]]) {
+            [_session setSessionPreset:sessionPreset];
+        }
+    } else {
         [_session setSessionPreset:sessionPreset];
     }
     [_session commitConfiguration];
@@ -379,13 +383,19 @@ static NSString *TAG = @"SYBaseCamera";
     if (position == AVCaptureDevicePositionBack) {
         NSArray *deviceType;
         if (@available(iOS 13.0, *)) {
-            deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+            if ([self isKindOfClass:[SYMultiCamera class]]) {
+                AVCaptureDevice *backDevice = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera mediaType:AVMediaTypeVideo position:position];
+                device = backDevice;
+            } else {
+                deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+                AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
+                device = deviceSession.devices.firstObject;
+            }
         } else {
             deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+            AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
+            device = deviceSession.devices.firstObject;
         }
-        
-        AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
-        device = deviceSession.devices.firstObject;
     } else  {
         AVCaptureDevice *frontDevice = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera mediaType:AVMediaTypeVideo position:position];
         device = frontDevice;

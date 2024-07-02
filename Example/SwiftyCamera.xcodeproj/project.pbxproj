@@ -12,6 +12,7 @@
 		420BD2962C0C0556003E5F92 /* PreviewViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420BD2952C0C0556003E5F92 /* PreviewViewController.swift */; };
 		420BD2982C0C05C2003E5F92 /* VideoPlayerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 420BD2972C0C05C2003E5F92 /* VideoPlayerView.swift */; };
 		4274F7102C33FD810015219B /* SingleViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4274F70F2C33FD810015219B /* SingleViewController.swift */; };
+		4274F7122C3400920015219B /* DualViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4274F7112C3400920015219B /* DualViewController.swift */; };
 		42B876282C231A9700F8C49B /* CMMotionManager+Ext.swift in Sources */ = {isa = PBXBuildFile; fileRef = 42B876272C231A9700F8C49B /* CMMotionManager+Ext.swift */; };
 		607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD51AFB9204008FA782 /* AppDelegate.swift */; };
 		607FACD81AFB9204008FA782 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 607FACD71AFB9204008FA782 /* ViewController.swift */; };
@@ -39,6 +40,7 @@
 		420BD2952C0C0556003E5F92 /* PreviewViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PreviewViewController.swift; sourceTree = "<group>"; };
 		420BD2972C0C05C2003E5F92 /* VideoPlayerView.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = VideoPlayerView.swift; sourceTree = "<group>"; };
 		4274F70F2C33FD810015219B /* SingleViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SingleViewController.swift; sourceTree = "<group>"; };
+		4274F7112C3400920015219B /* DualViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DualViewController.swift; sourceTree = "<group>"; };
 		42B876272C231A9700F8C49B /* CMMotionManager+Ext.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "CMMotionManager+Ext.swift"; sourceTree = "<group>"; };
 		607FACD01AFB9204008FA782 /* SwiftyCamera_Example.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = SwiftyCamera_Example.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		607FACD41AFB9204008FA782 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -114,6 +116,7 @@
 				607FACD51AFB9204008FA782 /* AppDelegate.swift */,
 				607FACD71AFB9204008FA782 /* ViewController.swift */,
 				4274F70F2C33FD810015219B /* SingleViewController.swift */,
+				4274F7112C3400920015219B /* DualViewController.swift */,
 				420BD2952C0C0556003E5F92 /* PreviewViewController.swift */,
 				42B876272C231A9700F8C49B /* CMMotionManager+Ext.swift */,
 				607FACD91AFB9204008FA782 /* Main.storyboard */,
@@ -348,6 +351,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4274F7102C33FD810015219B /* SingleViewController.swift in Sources */,
+				4274F7122C3400920015219B /* DualViewController.swift in Sources */,
 				607FACD81AFB9204008FA782 /* ViewController.swift in Sources */,
 				607FACD61AFB9204008FA782 /* AppDelegate.swift in Sources */,
 				420BD2962C0C0556003E5F92 /* PreviewViewController.swift in Sources */,

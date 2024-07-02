@@ -93,6 +93,9 @@ NS_ASSUME_NONNULL_BEGIN
 @property (nonatomic, assign, readonly) CGFloat maxZoom;
 
 
+/// 是否支持多摄像头
++ (BOOL)isMultiCamSupported API_AVAILABLE(ios(13.0), macCatalyst(14.0), tvos(17.0)) API_UNAVAILABLE(macos, visionos) API_UNAVAILABLE(watchos);
+
 /// 创建相机
 /// - Parameters:
 ///   - config: SYCameraConfig
