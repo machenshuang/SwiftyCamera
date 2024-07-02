@@ -12,28 +12,25 @@
 
 - (instancetype)init
 {
-    self = [self initWithMode:SYPhotoMode withSessionPreset:AVCaptureSessionPresetPhoto withPosition:AVCaptureDevicePositionBack];
+    self = [self initWithMode:SYPhotoMode withPosition:AVCaptureDevicePositionBack];
     return self;
 }
 
 - (instancetype)initWithMode:(SYCameraMode)mode
-           withSessionPreset:(AVCaptureSessionPreset)sessionPreset
                 withPosition:(AVCaptureDevicePosition)devicePosition
 {
-    self = [self initWithMode:mode withType:SYSingleDevice withSessionPreset:sessionPreset withPosition:devicePosition];
+    self = [self initWithMode:mode withType:SYSingleDevice withPosition:devicePosition];
     return self;
 }
 
 - (instancetype)initWithMode:(SYCameraMode)mode
                     withType:(SYDeviceType)type
-           withSessionPreset:(AVCaptureSessionPreset)sessionPreset
                 withPosition:(AVCaptureDevicePosition)devicePosition
 {
     self = [super init];
     if (self) {
         self.mode = mode;
         self.type = type;
-        self.sessionPreset = sessionPreset;
         self.devicePosition = devicePosition;
     }
     return self;

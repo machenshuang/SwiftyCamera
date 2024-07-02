@@ -35,14 +35,11 @@ static NSString *TAG = @"SYBaseCamera";
     SYBaseCamera *camera;
     AVCaptureSessionPreset preset = config.sessionPreset;
     AVCaptureDevicePosition position = config.devicePosition;
-    SYCameraMode mode = config.mode;
     if (position == AVCaptureDevicePositionUnspecified) {
         position = AVCaptureDevicePositionBack;
     }
     
-    if (mode == SYModeUnspecified) {
-        mode = SYPhotoMode;
-    }
+    SYCameraMode mode = config.mode;
     
     if (preset == nil) {
         if (mode == SYPhotoMode) {

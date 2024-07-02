@@ -10,6 +10,7 @@
 #import "SYPreviewView.h"
 #import "SYRecorder.h"
 #import "UIImage+SYImage.h"
+#import "SYLog.h"
 
 typedef struct SYCameraManagerDelegateMap {
     unsigned int cameraDidStarted : 1;
@@ -28,14 +29,18 @@ typedef struct SYCameraManagerDelegateMap {
     unsigned int cameraRecordStatusDidChange: 1;
 } SYCameraManagerDelegateMap;
 
+static NSString * TAG = @"SYCameraManager";
+
 @interface SYCameraManager () <SYCameraDelegate>
 {
     SYBaseCamera *_camera;
-    SYPreviewView *_previewView;
+    NSDictionary<NSNumber *, SYPreviewView *> *_previewViews;
     SYCameraManagerDelegateMap _delegateCache;
+    SYDeviceType _deviceType;
     SYRecorder *_recorder;
     CGSize _sampleBufferSize;
     BOOL _audioProcessing;
+    NSDictionary<NSNumber *, NSValue *> *_previewViewRects;
 }
 
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
@@ -54,7 +59,7 @@ typedef struct SYCameraManagerDelegateMap {
     self = [super init];
     if (self) {
         _sampleBufferSize = CGSizeMake(1080, 1920);
-        [self configurePreviewView];
+        _deviceType = SYSingleDevice;
         _deviceOrientation = UIDeviceOrientationPortrait;
         _recordStatus = SYRecordNormal;
     }
@@ -80,7 +85,9 @@ typedef struct SYCameraManagerDelegateMap {
             return;
         }
     }
-    
+    _deviceType = config.type;
+    _previewViewRects = config.previewViewRects;
+    [self configurePreviewView];
     _camera = [SYBaseCamera createCameraWithConfig:config withDelegate:self];
     _camera.delegate = self;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
@@ -89,16 +96,32 @@ typedef struct SYCameraManagerDelegateMap {
 
 - (void)configurePreviewView
 {
-    _previewView = [SYPreviewView new];
+    switch (_deviceType) {
+        case SYSingleDevice: {
+            SYPreviewView *previewView = [SYPreviewView new];
+            _previewViews = @{
+                @(AVCaptureDevicePositionFront): previewView,
+                @(AVCaptureDevicePositionBack): previewView,
+            };
+            break;
+        }
+        case SYDualDevice: {
+            SYPreviewView *frontPreviewView = [SYPreviewView new];
+            SYPreviewView *backPreviewView = [SYPreviewView new];
+            _previewViews = @{
+                @(AVCaptureDevicePositionFront): frontPreviewView,
+                @(AVCaptureDevicePositionBack): backPreviewView,
+            };
+            break;
+        }
+            
+    }
 }
 
 - (void)changeCameraMode:(SYCameraMode)mode withSessionPreset:(AVCaptureSessionPreset)preset
 {
     if (!_camera) {
-        return;
-    }
-    
-    if (mode == SYModeUnspecified) {
+        SYLog(TAG, "changeCameraMode camera is nil");
         return;
     }
     
@@ -118,19 +141,95 @@ typedef struct SYCameraManagerDelegateMap {
 
 - (void)addPreviewToView:(UIView *)view
 {
-    if (_previewView.superview != nil) {
-        [_previewView removeFromSuperview];
+    if (!_camera) {
+        SYLog(TAG, "addPreviewToView camera is nil");
+        return;
     }
-    [view addSubview:_previewView];
+    switch (_deviceType) {
+        case SYSingleDevice: {
+            [self addSinglePreviewViewToView:view];
+            break;
+        }
+        case SYDualDevice: {
+            [self addDualPreviewViewToView:view];
+            break;
+        }
+    }
+}
+
+- (void)addSinglePreviewViewToView:(UIView *)view
+{
+    SYPreviewView *previewView = _previewViews[@(_camera.cameraPosition)];
+    if (previewView.superview) {
+        [previewView removeFromSuperview];
+    }
+    [view addSubview:previewView];
     
     // 有性能优化，精准控制布局
-    _previewView.translatesAutoresizingMaskIntoConstraints = NO;
+    previewView.translatesAutoresizingMaskIntoConstraints = NO;
     [view addConstraints:@[
-        [NSLayoutConstraint constraintWithItem:_previewView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeLeading multiplier:1 constant:0],
-        [NSLayoutConstraint constraintWithItem:_previewView attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTrailing multiplier:1 constant:0],
-        [NSLayoutConstraint constraintWithItem:_previewView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeBottom multiplier:1 constant:0],
-        [NSLayoutConstraint constraintWithItem:_previewView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTop multiplier:1 constant:0],
+        [NSLayoutConstraint constraintWithItem:previewView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeLeading multiplier:1 constant:0],
+        [NSLayoutConstraint constraintWithItem:previewView attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTrailing multiplier:1 constant:0],
+        [NSLayoutConstraint constraintWithItem:previewView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeBottom multiplier:1 constant:0],
+        [NSLayoutConstraint constraintWithItem:previewView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTop multiplier:1 constant:0],
     ]];
+}
+
+- (void)addDualPreviewViewToView:(UIView *)view
+{
+    SYPreviewView *backPreviewView = _previewViews[@(AVCaptureDevicePositionBack)];
+    SYPreviewView *frontPreviewView = _previewViews[@(AVCaptureDevicePositionFront)];
+    if (backPreviewView.superview) {
+        [backPreviewView removeFromSuperview];
+    }
+    if (frontPreviewView.superview) {
+        [frontPreviewView removeFromSuperview];
+    }
+    
+    switch (_camera.cameraPosition) {
+        case AVCaptureDevicePositionFront: {
+            [view addSubview:frontPreviewView];
+            [view addSubview:backPreviewView];
+            break;
+        }
+        default: {
+            [view addSubview:backPreviewView];
+            [view addSubview:frontPreviewView];
+            break;
+        }
+    }
+    
+    CGRect backRect;
+    CGRect frontRect;
+    
+    if (_previewViewRects[@(AVCaptureDevicePositionBack)]) {
+        backRect = [_previewViewRects[@(AVCaptureDevicePositionBack)] CGRectValue];
+    } else {
+        backRect = CGRectMake(0, 0, 1, 0.5);
+    }
+    
+    if (_previewViewRects[@(AVCaptureDevicePositionFront)]) {
+        frontRect = [_previewViewRects[@(AVCaptureDevicePositionFront)] CGRectValue];
+    } else {
+        frontRect = CGRectMake(0, 0.5, 1, 0.5);
+    }
+    
+    backPreviewView.translatesAutoresizingMaskIntoConstraints = NO;
+    [view addConstraints:@[
+        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeLeading multiplier:1+backRect.origin.x constant:0],
+        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTop multiplier:1+backRect.origin.y constant:0],
+        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeWidth multiplier:backRect.size.width constant:0],
+        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeHeight multiplier:backRect.size.height constant:0],
+    ]];
+    
+    frontPreviewView.translatesAutoresizingMaskIntoConstraints = NO;
+    [view addConstraints:@[
+        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeLeading multiplier:1+frontRect.origin.x constant:0],
+        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeTrailing relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTop multiplier:1+frontRect.origin.y constant:0],
+        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeBottom relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeWidth multiplier:frontRect.size.width constant:0],
+        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeHeight multiplier:frontRect.size.height constant:0],
+    ]];
+    
 }
 
 - (void)setDelegate:(id<SYCameraManagerDelegate>)delegate
@@ -350,7 +449,7 @@ typedef struct SYCameraManagerDelegateMap {
     if (_camera) {
         return _camera.mode;
     } else {
-        return SYModeUnspecified;
+        return SYPhotoMode;
     }
 }
 
@@ -397,10 +496,10 @@ typedef struct SYCameraManagerDelegateMap {
             [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
             return;
         }
+        SYPreviewView *previewView = _previewViews[@(_camera.cameraPosition)];
         UIImage *image = [[UIImage alloc] initWithData:imageData];
-        CGFloat ratio = CGRectGetWidth(_previewView.frame) / CGRectGetHeight(_previewView.frame);
+        CGFloat ratio = CGRectGetWidth(previewView.frame) / CGRectGetHeight(previewView.frame);
         UIImage *fixImage = [image fixImageWithOrientation:image.imageOrientation withRatio:ratio];
-        
         
         if (fixImage == nil) {
             [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
@@ -500,7 +599,7 @@ typedef struct SYCameraManagerDelegateMap {
 
 - (SYPreviewView *)getVideoPreviewForPosition:(AVCaptureDevicePosition)position
 {
-    return _previewView;
+    return _previewViews[@(position)];
 }
 
 
