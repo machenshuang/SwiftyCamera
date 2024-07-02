@@ -32,15 +32,15 @@ static NSString *TAG = @"SYMultiCamera";
     [_backVideoOutput setSampleBufferDelegate:nil queue:nil];
 }
 
-- (void)createCaptureSession
+- (void)setupCaptureSession
 {
     self.session = [[AVCaptureMultiCamSession alloc] init];
     
 }
 
-- (BOOL)configureCameraDevice
+- (BOOL)setupCameraDevice
 {
-    SYLog(TAG, "configureCameraDevice");
+    SYLog(TAG, "setupCameraDevice");
     _frontDevice = [self fetchCameraDeviceWithPosition:AVCaptureDevicePositionFront];
     _backDevice = [self fetchCameraDeviceWithPosition:AVCaptureDevicePositionBack];
     if (_frontDevice && _backDevice) {
@@ -50,7 +50,7 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)configureVideoDeviceInput
+- (void)setupVideoDeviceInput
 {
     SYLog(TAG, "configureVideoDeviceInput");
     
@@ -98,7 +98,7 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)configureVideoOutput
+- (void)setupVideoOutput
 {
     SYLog(TAG, "configureVideoOutput");
     
@@ -130,8 +130,8 @@ static NSString *TAG = @"SYMultiCamera";
             SYLog(TAG, "configureVideoOutput addFrontConnection failure");
         }
         
-        if (self.delegateMap.getVideoPreviewLayerForPosition) {
-            AVCaptureVideoPreviewLayer *layer = [self.delegate getVideoPreviewLayerForPosition:AVCaptureDevicePositionFront];
+        if (self.delegateMap.getVideoPreviewForPosition) {
+            AVCaptureVideoPreviewLayer *layer = [self.delegate getVideoPreviewForPosition:AVCaptureDevicePositionFront].previewLayer;
             AVCaptureConnection *frontVideoPreviewLayerConnection = [[AVCaptureConnection alloc] initWithInputPort:frontDeviceVideoPort videoPreviewLayer:layer];
             if ([self.session canAddConnection:frontVideoPreviewLayerConnection]) {
                 [self.session addConnection:frontVideoPreviewLayerConnection];
@@ -161,8 +161,8 @@ static NSString *TAG = @"SYMultiCamera";
             SYLog(TAG, "configureVideoOutput addBackConnection failure");
         }
         
-        if (self.delegateMap.getVideoPreviewLayerForPosition) {
-            AVCaptureVideoPreviewLayer *layer = [self.delegate getVideoPreviewLayerForPosition:AVCaptureDevicePositionBack];
+        if (self.delegateMap.getVideoPreviewForPosition) {
+            AVCaptureVideoPreviewLayer *layer = [self.delegate getVideoPreviewForPosition:AVCaptureDevicePositionBack].previewLayer;
             AVCaptureConnection *backVideoPreviewLayerConnection = [[AVCaptureConnection alloc] initWithInputPort:backDeviceVideoPort videoPreviewLayer:layer];
             if ([self.session canAddConnection:backVideoPreviewLayerConnection]) {
                 [self.session addConnection:backVideoPreviewLayerConnection];
@@ -173,16 +173,16 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)configurePhotoOutput
+- (void)setupPhotoOutput
 {
-    SYLog(TAG, "configurePhotoOutput");
+    SYLog(TAG, "setupPhotoOutput");
     if (_frontPhotoOutput == nil) {
         _frontPhotoOutput = [AVCapturePhotoOutput new];
         [_frontPhotoOutput setHighResolutionCaptureEnabled:YES];
         if ([self.session canAddOutput:_frontPhotoOutput]) {
             [self.session addOutput:_frontPhotoOutput];
         } else {
-            SYLog(TAG, "configurePhotoOutput addFrontOutput failure");
+            SYLog(TAG, "setupPhotoOutput addFrontOutput failure");
         }
     }
     
@@ -192,7 +192,7 @@ static NSString *TAG = @"SYMultiCamera";
         if ([self.session canAddOutput:_backPhotoOutput]) {
             [self.session addOutput:_backPhotoOutput];
         } else {
-            SYLog(TAG, "configurePhotoOutput addBackOutput failure");
+            SYLog(TAG, "setupPhotoOutput addBackOutput failure");
         }
     }
 }

@@ -81,9 +81,8 @@ typedef struct SYCameraManagerDelegateMap {
         }
     }
     
-    _camera = [SYBaseCamera createCameraWithConfig:config];
+    _camera = [SYBaseCamera createCameraWithConfig:config withDelegate:self];
     _camera.delegate = self;
-    _previewView.session = _camera.session;
     _camera.orientation = [self convertOrientation:self.deviceOrientation];
     completion(self.isAuthority);
 }
@@ -499,9 +498,9 @@ typedef struct SYCameraManagerDelegateMap {
     }
 }
 
-- (AVCaptureVideoPreviewLayer *)getVideoPreviewLayerForPosition:(AVCaptureDevicePosition)position
+- (SYPreviewView *)getVideoPreviewForPosition:(AVCaptureDevicePosition)position
 {
-    return _previewView.previewLayer;
+    return _previewView;
 }
 
 

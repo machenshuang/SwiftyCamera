@@ -8,6 +8,7 @@
 #import "SYBaseCamera.h"
 #import "SYLog.h"
 #import "SYSingleCamera.h"
+#import "SYMultiCamera.h"
 
 static NSString *TAG = @"SYBaseCamera";
 
@@ -29,7 +30,7 @@ static NSString *TAG = @"SYBaseCamera";
 
 @implementation SYBaseCamera
 
-+ (SYBaseCamera *)createCameraWithConfig:(SYCameraConfig *)config
++ (SYBaseCamera *)createCameraWithConfig:(SYCameraConfig *)config withDelegate:(id<SYCameraDelegate>)delegate
 {
     SYBaseCamera *camera;
     AVCaptureSessionPreset preset = config.sessionPreset;
@@ -52,11 +53,13 @@ static NSString *TAG = @"SYBaseCamera";
     }
     switch (config.type) {
         case SYSingleDevice: {
-            camera = [[SYSingleCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode];
+            camera = [[SYSingleCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode withDelegate:delegate];
             break;
         }
         case SYDualDevice: {
-            camera = [[SYSingleCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode];
+            if (@available(iOS 13.0, *)) {
+                camera = [[SYMultiCamera alloc] initWithSessionPreset:preset cameraPosition:position withMode:mode withDelegate:delegate];
+            }
             break;
         }
     }
@@ -65,7 +68,8 @@ static NSString *TAG = @"SYBaseCamera";
 
 - (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
                        cameraPosition:(AVCaptureDevicePosition)cameraPosition
-                             withMode:(SYCameraMode)mode;
+                             withMode:(SYCameraMode)mode
+                         withDelegate:(id<SYCameraDelegate>)delegate
 {
     self = [super init];
     if (self) {
@@ -76,15 +80,16 @@ static NSString *TAG = @"SYBaseCamera";
 
         _cameraPosition = cameraPosition;
         _mode = mode;
-        [self createCaptureSession];
-        if (![self configureCameraDevice]) {
-            SYLog(TAG, "initWithSessionPreset configureCameraDevice failure");
-            return nil;
-        }
-        SYLog(TAG, "initWithSessionPreset");
+        self.delegate = delegate;
+        [self setupCaptureSession];
         __weak typeof(self)weakSelf = self;
         dispatch_async(_sessionQueue, ^{
             __strong typeof(weakSelf)strongSelf = weakSelf;
+           
+            if (![strongSelf setupCameraDevice]) {
+                SYLog(TAG, "initWithSessionPreset setupCameraDevice failure");
+                return;
+            }
             [strongSelf configureSesson: sessionPreset];
         });
         
@@ -113,7 +118,7 @@ static NSString *TAG = @"SYBaseCamera";
     _delegateMap.changedEV = [delegate respondsToSelector:@selector(cameraDidChangeEV:)];
     _delegateMap.cameraWillProcessPhoto = [delegate respondsToSelector:@selector(cameraWillProcessPhoto)];
     _delegateMap.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:)];
-    _delegateMap.getVideoPreviewLayerForPosition = [delegate respondsToSelector:@selector(getVideoPreviewLayerForPosition:)];
+    _delegateMap.getVideoPreviewForPosition = [delegate respondsToSelector:@selector(getVideoPreviewForPosition:)];
 }
 
 - (void)changeCameraMode:(SYCameraMode)mode
@@ -140,9 +145,9 @@ static NSString *TAG = @"SYBaseCamera";
 {
     SYLog(TAG, "configureSesson beginConfiguration");
     [_session beginConfiguration];
-    [self configureVideoDeviceInput];
-    [self configureVideoOutput];
-    [self configurePhotoOutput];
+    [self setupVideoDeviceInput];
+    [self setupVideoOutput];
+    [self setupPhotoOutput];
     if ([_session isKindOfClass:[AVCaptureSession class]]) {
         [_session setSessionPreset:sessionPreset];
     }
@@ -152,27 +157,27 @@ static NSString *TAG = @"SYBaseCamera";
     SYLog(TAG, "configureSesson commitConfiguration");
 }
 
-- (void)configureVideoDeviceInput
+- (void)setupVideoDeviceInput
 {
 
 }
 
-- (void)configureVideoOutput
-{
-    
-}
-
-- (void)configurePhotoOutput
+- (void)setupVideoOutput
 {
     
 }
 
-- (BOOL)configureCameraDevice 
+- (void)setupPhotoOutput
+{
+    
+}
+
+- (BOOL)setupCameraDevice 
 {
     return NO;
 }
 
-- (void)createCaptureSession 
+- (void)setupCaptureSession 
 {
     
 }
@@ -285,11 +290,11 @@ static NSString *TAG = @"SYBaseCamera";
     }
     
     self->_cameraPosition = position;
-    BOOL ret = [self configureCameraDevice];
+    BOOL ret = [self setupCameraDevice];
     __weak typeof(self)weakSelf = self;
     dispatch_async(_sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
-        [self configureVideoDeviceInput];
+        [self setupVideoDeviceInput];
         [strongSelf->_session commitConfiguration];
         if (strongSelf->_delegateMap.changedPosition) {
             [strongSelf->_delegate cameraDidChangePosition:strongSelf->_cameraPosition == AVCaptureDevicePositionBack ? YES : NO];
@@ -344,16 +349,16 @@ static NSString *TAG = @"SYBaseCamera";
 
 - (CGFloat)zoom
 {
-    return 0;
+    return 1;
 }
 
 - (CGFloat)maxZoom
 {
-    return 0;
+    return 1;
 }
 
 - (CGFloat)minZoom {
-    return 0;
+    return 1;
 }
 
 - (void)takePhoto

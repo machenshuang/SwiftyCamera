@@ -8,6 +8,7 @@
 #import <Foundation/Foundation.h>
 #import <AVFoundation/AVFoundation.h>
 #import "SYCameraConfig.h"
+#import "SYPreviewView.h"
 
 NS_ASSUME_NONNULL_BEGIN
 
@@ -29,7 +30,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode;
 - (void)cameraDidChangeEV:(CGFloat)value;
 - (void)cameraWillProcessPhoto;
-- (AVCaptureVideoPreviewLayer *)getVideoPreviewLayerForPosition:(AVCaptureDevicePosition)position;
+- (SYPreviewView *)getVideoPreviewForPosition:(AVCaptureDevicePosition)position;
 
 @end
 
@@ -47,7 +48,7 @@ typedef struct SYCameraDelegateMap {
     unsigned int changedEV : 1;
     unsigned int cameraWillProcessPhoto : 1;
     unsigned int cameraDidChangeMode: 1;
-    unsigned int getVideoPreviewLayerForPosition: 1;
+    unsigned int getVideoPreviewForPosition: 1;
 } SYCameraDelegateMap;
 
 @interface SYBaseCamera : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate, AVCaptureAudioDataOutputSampleBufferDelegate>
@@ -69,16 +70,18 @@ typedef struct SYCameraDelegateMap {
 
 @property (nullable, nonatomic, weak) id<SYCameraDelegate> delegate;
 
-+(SYBaseCamera *)createCameraWithConfig:(SYCameraConfig *)config;
++(SYBaseCamera * _Nullable)createCameraWithConfig:(SYCameraConfig *)config withDelegate:(id<SYCameraDelegate>)delegate;
 
 - (instancetype)initWithSessionPreset:(AVCaptureSessionPreset)sessionPreset
                        cameraPosition:(AVCaptureDevicePosition)cameraPosition
-                             withMode:(SYCameraMode)mode;
-- (void)createCaptureSession;
-- (BOOL)configureCameraDevice;
-- (void)configureVideoDeviceInput;
-- (void)configureVideoOutput;
-- (void)configurePhotoOutput;
+                             withMode:(SYCameraMode)mode
+                         withDelegate:(id<SYCameraDelegate>)delegate;
+
+- (void)setupCaptureSession;
+- (BOOL)setupCameraDevice;
+- (void)setupVideoDeviceInput;
+- (void)setupVideoOutput;
+- (void)setupPhotoOutput;
 - (void)startCapture;
 - (void)stopCapture;
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position;

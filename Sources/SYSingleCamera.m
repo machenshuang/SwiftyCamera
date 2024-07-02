@@ -27,23 +27,28 @@ static NSString *TAG = @"SYSingleCamera";
     [_videoOutput setSampleBufferDelegate:nil queue:nil];
 }
 
-- (void)createCaptureSession
+- (void)setupCaptureSession
 {
     self.session = [[AVCaptureSession alloc] init];
+    if (self.delegateMap.getVideoPreviewForPosition) {
+        SYPreviewView *previewView = [self.delegate getVideoPreviewForPosition:self.cameraPosition];
+        previewView.session = self.session;
+    }
+    
 }
 
-- (BOOL)configureCameraDevice
+- (BOOL)setupCameraDevice
 {
     SYLog(TAG, "configureCameraDevice");
     _inputCamera = [self fetchCameraDeviceWithPosition:self.cameraPosition];
     return _inputCamera != nil;
 }
 
-- (void)configureVideoDeviceInput
+- (void)setupVideoDeviceInput
 {
-    SYLog(TAG, "configureVideoDeviceInput");
+    SYLog(TAG, "setupVideoDeviceInput");
     if (_videoInput != nil &&_inputCamera != nil && _videoInput.device == _inputCamera) {
-        SYLog(TAG, "configureVideoDeviceInput _videoInput.device == _inputCamera");
+        SYLog(TAG, "setupVideoDeviceInput _videoInput.device == _inputCamera");
         return;
     }
     
@@ -52,7 +57,7 @@ static NSString *TAG = @"SYSingleCamera";
     AVCaptureDeviceInput *videoInput = [[AVCaptureDeviceInput alloc] initWithDevice:_inputCamera error:&error];
     
     if (error) {
-        SYLog(TAG, "configureVideoDeviceInput initWithDevice failure，error = %@", error.description);
+        SYLog(TAG, "setupVideoDeviceInput initWithDevice failure，error = %@", error.description);
         return;
     }
     
@@ -70,9 +75,9 @@ static NSString *TAG = @"SYSingleCamera";
     }
 }
 
-- (void)configureVideoOutput
+- (void)setupVideoOutput
 {
-    SYLog(TAG, "configureVideoOutput");
+    SYLog(TAG, "setupVideoOutput");
     if (_videoOutput == nil) {
         _videoOutput = [[AVCaptureVideoDataOutput alloc] init];
         [_videoOutput setAlwaysDiscardsLateVideoFrames:NO];
@@ -81,7 +86,7 @@ static NSString *TAG = @"SYSingleCamera";
         if ([self.session canAddOutput:_videoOutput]) {
             [self.session addOutput:_videoOutput];
         } else {
-            SYLog(TAG, "configureVideoOutput addOutput failure");
+            SYLog(TAG, "setupVideoOutput addOutput failure");
         }
     }
     
@@ -95,16 +100,16 @@ static NSString *TAG = @"SYSingleCamera";
     }
 }
 
-- (void)configurePhotoOutput
+- (void)setupPhotoOutput
 {
-    SYLog(TAG, "configurePhotoOutput");
+    SYLog(TAG, "setupPhotoOutput");
     if (_photoOutput == nil) {
         _photoOutput = [AVCapturePhotoOutput new];
         [_photoOutput setHighResolutionCaptureEnabled:YES];
         if ([self.session canAddOutput:_photoOutput]) {
             [self.session addOutput:_photoOutput];
         } else {
-            SYLog(TAG, "configurePhotoOutput addOutput failure");
+            SYLog(TAG, "setupPhotoOutput addOutput failure");
         }
     }
 }
@@ -115,6 +120,12 @@ static NSString *TAG = @"SYSingleCamera";
     dispatch_async(self.sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
         NSError *error;
+        
+        if (!strongSelf->_inputCamera) {
+            SYLog(TAG, "focusWithPoint cameraDevice is nil");
+            return;
+        }
+        
         [strongSelf->_inputCamera lockForConfiguration:&error];
         if (error != nil) {
             [strongSelf->_inputCamera unlockForConfiguration];
@@ -137,6 +148,10 @@ static NSString *TAG = @"SYSingleCamera";
     __weak typeof(self)weakSelf = self;
     dispatch_async(self.sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (!strongSelf->_inputCamera) {
+            SYLog(TAG, "exposureWithPoint cameraDevice is nil");
+            return;
+        }
         NSError *error;
         [strongSelf->_inputCamera lockForConfiguration:&error];
         if (error != nil) {
@@ -158,6 +173,10 @@ static NSString *TAG = @"SYSingleCamera";
     __weak typeof(self)weakSelf = self;
     dispatch_async(self.sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (!strongSelf->_inputCamera) {
+            SYLog(TAG, "setEv cameraDevice is nil");
+            return;
+        }
         NSError *error;
         [strongSelf->_inputCamera lockForConfiguration:&error];
         if (error != nil) {
@@ -182,6 +201,10 @@ static NSString *TAG = @"SYSingleCamera";
     __weak typeof(self)weakSelf = self;
     dispatch_async(self.sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
+        if (!strongSelf->_inputCamera) {
+            SYLog(TAG, "setZoom cameraDevice is nil");
+            return;
+        }
         CGFloat value = zoom;
         CGFloat minZoom = [strongSelf minZoom];
         CGFloat maxZoom = [strongSelf maxZoom];
@@ -222,6 +245,9 @@ static NSString *TAG = @"SYSingleCamera";
 
 - (CGFloat)zoom
 {
+    if (!_inputCamera) {
+        return 1;
+    }
     if (@available(iOS 13.0, *)) {
         if (_inputCamera.deviceType == AVCaptureDeviceTypeBuiltInTripleCamera || _inputCamera.deviceType == AVCaptureDeviceTypeBuiltInDualWideCamera) {
             return _inputCamera.videoZoomFactor / 2.0;
@@ -232,6 +258,9 @@ static NSString *TAG = @"SYSingleCamera";
 
 - (CGFloat)maxZoom
 {
+    if (!_inputCamera) {
+        return 1;
+    }
     if (@available(iOS 13.0, *)) {
         if (_inputCamera.deviceType == AVCaptureDeviceTypeBuiltInTripleCamera || _inputCamera.deviceType == AVCaptureDeviceTypeBuiltInDualWideCamera) {
             return _inputCamera.maxAvailableVideoZoomFactor / 2.0;
@@ -241,6 +270,9 @@ static NSString *TAG = @"SYSingleCamera";
 }
 
 - (CGFloat)minZoom {
+    if (!_inputCamera) {
+        return 1;
+    }
     if (@available(iOS 13.0, *)) {
         if (_inputCamera.deviceType == AVCaptureDeviceTypeBuiltInTripleCamera || _inputCamera.deviceType == AVCaptureDeviceTypeBuiltInDualWideCamera) {
             return _inputCamera.minAvailableVideoZoomFactor / 2.0;
@@ -256,7 +288,12 @@ static NSString *TAG = @"SYSingleCamera";
         __strong typeof(weakSelf)strongSelf = weakSelf;
         
         if (strongSelf.mode != SYPhotoMode) {
-            SYLog(TAG, "takePhoto 非拍照模式");
+            SYLog(TAG, "takePhoto %lu is not SYPhotoMode", strongSelf.mode);
+            return;
+        }
+        
+        if (!strongSelf->_photoOutput) {
+            SYLog(TAG, "takePhoto photoOutput is nil");
             return;
         }
         
@@ -268,9 +305,9 @@ static NSString *TAG = @"SYSingleCamera";
         // 防抖
         [setting setAutoStillImageStabilizationEnabled:YES];
         
-        AVCaptureConnection *photoOutputConnection = [self->_photoOutput connectionWithMediaType:AVMediaTypeVideo];
+        AVCaptureConnection *photoOutputConnection = [strongSelf->_photoOutput connectionWithMediaType:AVMediaTypeVideo];
         if (photoOutputConnection) {
-            photoOutputConnection.videoMirrored = self.cameraPosition == AVCaptureDevicePositionFront;
+            photoOutputConnection.videoMirrored = strongSelf.cameraPosition == AVCaptureDevicePositionFront;
         }
         
         if ([strongSelf->_inputCamera hasFlash]) {
