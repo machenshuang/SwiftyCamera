@@ -15,6 +15,7 @@ NS_ASSUME_NONNULL_BEGIN
 @protocol SYCameraDelegate <NSObject>
 
 @required
+- (void)cameraSessionSetupResult:(SYSessionSetupResult)result;
 - (void)cameraDidStarted;
 - (void)cameraDidStoped;
 - (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *_Nullable)photo
@@ -50,6 +51,7 @@ typedef struct SYCameraDelegateMap {
     unsigned int cameraWillProcessPhoto : 1;
     unsigned int cameraDidChangeMode: 1;
     unsigned int getVideoPreviewForPosition: 1;
+    unsigned int cameraSessionSetupResult: 1;
 } SYCameraDelegateMap;
 
 @interface SYBaseCamera : NSObject <AVCaptureVideoDataOutputSampleBufferDelegate, AVCapturePhotoCaptureDelegate, AVCaptureAudioDataOutputSampleBufferDelegate>

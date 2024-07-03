@@ -17,6 +17,13 @@ typedef NS_ENUM(NSUInteger, SYDeviceType) {
     SYDualDevice, // 前后摄
 };
 
+typedef NS_ENUM(NSUInteger, SYSessionSetupResult) {
+    SYSessionSetupSuccess,  // 成功
+    SYSessionSetupNotAuthorized, // 无权限
+    SYSessionSetupConfigurationFailed,  // 配置失败
+    SYSessionSetupMultiCamNotSupported, // 不支持双摄
+};
+
 
 typedef NS_ENUM(NSUInteger, SYCameraMode) {
     SYPhotoMode,    // 拍照模式

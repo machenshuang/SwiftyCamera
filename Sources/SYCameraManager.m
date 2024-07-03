@@ -11,6 +11,7 @@
 #import "SYRecorder.h"
 #import "UIImage+SYImage.h"
 #import "SYLog.h"
+#import "SYMultiCamera.h"
 
 typedef struct SYCameraManagerDelegateMap {
     unsigned int cameraDidStarted : 1;
@@ -27,12 +28,12 @@ typedef struct SYCameraManagerDelegateMap {
     unsigned int cameraDidChangeMode: 1;
     unsigned int cameraDidFinishProcessingVideo: 1;
     unsigned int cameraRecordStatusDidChange: 1;
+    unsigned int cameraSessionSetupResult: 1;
 } SYCameraManagerDelegateMap;
 
 static NSString * TAG = @"SYCameraManager";
 
-@interface SYCameraManager () <SYCameraDelegate>
-{
+@interface SYCameraManager () <SYCameraDelegate> {
     SYBaseCamera *_camera;
     NSDictionary<NSNumber *, SYPreviewView *> *_previewViews;
     SYCameraManagerDelegateMap _delegateCache;
@@ -44,7 +45,7 @@ static NSString * TAG = @"SYCameraManager";
     NSMutableDictionary<NSNumber *, AVCapturePhoto *> *_multiPhotos;
 }
 
-@property (nonatomic, assign, readwrite) BOOL isAuthority;
+@property (nonatomic, assign, readwrite) SYSessionSetupResult result;
 @property (nonatomic, assign, readwrite) SYRecordStatus recordStatus;
 
 @property (nonatomic, assign, readwrite) CGFloat zoom;
@@ -56,7 +57,11 @@ static NSString * TAG = @"SYCameraManager";
 @implementation SYCameraManager
 
 + (BOOL)isMultiCamSupported {
-    return NO;
+    if (@available(iOS 13.0, *)) {
+        return AVCaptureMultiCamSession.isMultiCamSupported;
+    } else {
+        return NO;
+    }
 }
 
 - (instancetype)init {
@@ -64,7 +69,6 @@ static NSString * TAG = @"SYCameraManager";
     if (self) {
         _sampleBufferSize = CGSizeMake(1080, 1920);
         _deviceType = SYSingleDevice;
-        _deviceOrientation = UIDeviceOrientationPortrait;
         _recordStatus = SYRecordNormal;
         _multiPhotos = [NSMutableDictionary dictionary];
         _previewViewRects = [NSMutableDictionary dictionary];
@@ -73,20 +77,20 @@ static NSString * TAG = @"SYCameraManager";
 }
 
 - (void)requestCameraWithConfig:(SYCameraConfig *)config
-                 withCompletion:(void (^)(BOOL))completion {
-    self.isAuthority = YES;
+                 withCompletion:(void(^)(SYSessionSetupResult result))completion {
+    self.result = SYSessionSetupSuccess;
     AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if (status != AVAuthorizationStatusAuthorized) {
-        self.isAuthority = NO;
-        completion(self.isAuthority);
+        self.result = SYSessionSetupNotAuthorized;
+        completion(self.result);
         return;
     }
     
     if (config.mode == SYVideoMode) {
         status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeAudio];
         if (status != AVAuthorizationStatusAuthorized) {
-            self.isAuthority = NO;
-            completion(self.isAuthority);
+            self.result = SYSessionSetupNotAuthorized;
+            completion(self.result);
             return;
         }
     }
@@ -95,10 +99,26 @@ static NSString * TAG = @"SYCameraManager";
         _previewViewRects = [NSMutableDictionary dictionaryWithDictionary:config.previewViewRects];
     }
     [self configurePreviewView];
+    
+    if (_deviceType == SYDualDevice && config.mode == SYVideoMode) {
+        SYLog(TAG, "requestCameraWithConfig 双摄暂不支持录制模式");
+        self.result = SYSessionSetupConfigurationFailed;
+        completion(self.result);
+    }
+    
+    if (_deviceType == SYDualDevice && ![SYCameraManager isMultiCamSupported]) {
+        SYLog(TAG, "requestCameraWithConfig 该设备不支持双摄模式");
+        self.result = SYSessionSetupMultiCamNotSupported;
+        completion(self.result);
+        return;
+    }
     _camera = [SYBaseCamera createCameraWithConfig:config withDelegate:self];
-    _camera.delegate = self;
-    _camera.orientation = [self convertOrientation:self.deviceOrientation];
-    completion(self.isAuthority);
+    if (_camera) {
+        completion(self.result);
+    } else {
+        self.result = SYSessionSetupConfigurationFailed;
+        completion(self.result);
+    }
 }
 
 - (void)configurePreviewView {
@@ -130,6 +150,13 @@ static NSString * TAG = @"SYCameraManager";
         return;
     }
     
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "changeCameraMode 双摄暂不支持切换模式");
+            return;
+        }
+    }
+    
     AVCaptureSessionPreset sessionPreset; ;
     if (preset == nil) {
         if (mode == SYPhotoMode) {
@@ -145,10 +172,6 @@ static NSString * TAG = @"SYCameraManager";
 }
 
 - (void)addPreviewToView:(UIView *)view {
-    if (!_camera) {
-        SYLog(TAG, "addPreviewToView camera is nil");
-        return;
-    }
     switch (_deviceType) {
         case SYSingleDevice: {
             [self addSinglePreviewViewToView:view];
@@ -254,32 +277,61 @@ static NSString * TAG = @"SYCameraManager";
     _delegateCache.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:withManager:)];
     _delegateCache.cameraDidFinishProcessingVideo = [delegate respondsToSelector:@selector(cameraDidFinishProcessingVideo:withManager:withError:)];
     _delegateCache.cameraRecordStatusDidChange = [delegate respondsToSelector:@selector(cameraRecordStatusDidChange:withManager:)];
+    _delegateCache.cameraSessionSetupResult = [delegate respondsToSelector:@selector(cameraSessionSetupResult:withManager:)];
 }
 
 - (void)changeCameraPosition:(AVCaptureDevicePosition)position {
     if (_camera == nil) {
+        SYLog(TAG, "changeCameraPosition 相机对象为 nil");
         return;
     }
+    
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "changeCameraPosition 双摄暂不支持切换前后摄");
+            return;
+        }
+    }
+    
     [_camera changeCameraPosition:position];
 }
 
 - (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode {
     if (_camera == nil) {
+        SYLog(TAG, "exposureWithPoint 相机对象为 nil");
         return;
     }
+    
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "exposureWithPoint 双摄暂不支持切调整曝光");
+            return;
+        }
+    }
+    
     [_camera exposureWithPoint:point mode:mode];
 }
 
 - (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode {
     if (_camera == nil) {
+        SYLog(TAG, "focusWithPoint 相机对象为 nil");
         return;
     }
+    
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "focusWithPoint 双摄暂不支持切调整焦点");
+            return;
+        }
+    }
+    
     [_camera focusWithPoint:point mode:mode];
 }
 
 
 - (void)startCapture {
     if (_camera == nil) {
+        SYLog(TAG, "startCapture 相机对象为 nil");
         return;
     }
     [_camera startCapture];
@@ -287,6 +339,7 @@ static NSString * TAG = @"SYCameraManager";
 
 - (void)stopCapture {
     if (_camera == nil) {
+        SYLog(TAG, "stopCapture 相机对象为 nil");
         return;
     }
     [_camera stopCapture];
@@ -294,6 +347,7 @@ static NSString * TAG = @"SYCameraManager";
 
 - (void)takePhoto {
     if (_camera == nil) {
+        SYLog(TAG, "takePhoto 相机对象为 nil");
         return;
     }
     [_camera takePhoto];
@@ -301,11 +355,23 @@ static NSString * TAG = @"SYCameraManager";
 
 - (void)startRecord {
     if (_camera == nil) {
+        SYLog(TAG, "startRecord 相机对象为 nil");
         if (_delegateCache.cameraRecordStatusDidChange) {
             [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self];
         }
         return;
     }
+    
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "changeCameraPosition 双摄暂不支持录制");
+            if (_delegateCache.cameraRecordStatusDidChange) {
+                [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self];
+            }
+            return;
+        }
+    }
+    
     if (_audioProcessing) {
         return;
     }
@@ -332,10 +398,21 @@ static NSString * TAG = @"SYCameraManager";
 
 - (void)stopRecord {
     if (_camera == nil) {
+        SYLog(TAG, "stopRecord 相机对象为 nil");
         if (_delegateCache.cameraRecordStatusDidChange) {
             [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self];
         }
         return;
+    }
+    
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "changeCameraPosition 双摄暂不支持录制");
+            if (_delegateCache.cameraRecordStatusDidChange) {
+                [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self];
+            }
+            return;
+        }
     }
     
     if (_audioProcessing) {
@@ -400,14 +477,6 @@ static NSString * TAG = @"SYCameraManager";
     return image;
 }
 
-- (void)setDeviceOrientation:(UIDeviceOrientation)orientation {
-    _deviceOrientation = orientation;
-    if (_camera) {
-        AVCaptureVideoOrientation videoOrientation = [self convertOrientation:orientation];
-        _camera.orientation = videoOrientation;
-    }
-}
-
 - (AVCaptureVideoOrientation)convertOrientation:(UIDeviceOrientation)orientation {
     AVCaptureVideoOrientation videoOrientation = AVCaptureVideoOrientationPortrait;
     switch (orientation) {
@@ -444,28 +513,35 @@ static NSString * TAG = @"SYCameraManager";
 
 - (CGFloat)zoom {
     if (!_camera) {
-        return 0.0;
+        return 1.0;
     }
     return [_camera zoom];
 }
 
 - (CGFloat)minZoom {
     if (!_camera) {
-        return 0.0;
+        return 1.0;
     }
     return [_camera minZoom];
 }
 
 - (CGFloat)maxZoom {
     if (!_camera) {
-        return 0.0;
+        return 1.0;
     }
     return [_camera maxZoom];
 }
 
 - (void)setZoom:(CGFloat)zoom withAnimated:(BOOL)animated {
     if (!_camera) {
+        SYLog(TAG, "setZoom 相机对象为 nil");
         return;
+    }
+    if (@available(iOS 13.0, *)) {
+        if ([_camera isKindOfClass:[SYMultiCamera class]]) {
+            SYLog(TAG, "changeCameraPosition 双摄暂不支持调整焦距");
+            return;
+        }
     }
     [_camera setZoom:zoom withAnimated:animated];
 }
@@ -630,6 +706,11 @@ static NSString * TAG = @"SYCameraManager";
 - (SYPreviewView *)getVideoPreviewForPosition:(AVCaptureDevicePosition)position {
     return _previewViews[@(position)];
 }
+
+- (void)cameraSessionSetupResult:(SYSessionSetupResult)result { 
+    self.result = result;
+}
+
 
 
 @end

@@ -58,6 +58,9 @@ static NSString *TAG = @"SYSingleCamera";
     
     if (error) {
         SYLog(TAG, "setupVideoDeviceInput initWithDevice failure，error = %@", error.description);
+        if (self.delegateMap.cameraSessionSetupResult) {
+            [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+        }
         return;
     }
     
@@ -70,6 +73,10 @@ static NSString *TAG = @"SYSingleCamera";
     } else {
         if (_videoInput) {
             [self.session addInput:_videoInput];
+        } else {
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         SYLog(TAG, "configureVideoDeviceInput addInput failure");
     }
@@ -87,6 +94,9 @@ static NSString *TAG = @"SYSingleCamera";
             [self.session addOutput:_videoOutput];
         } else {
             SYLog(TAG, "setupVideoOutput addOutput failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
     }
     
@@ -110,6 +120,9 @@ static NSString *TAG = @"SYSingleCamera";
             [self.session addOutput:_photoOutput];
         } else {
             SYLog(TAG, "setupPhotoOutput addOutput failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
     }
 }

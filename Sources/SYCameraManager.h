@@ -19,6 +19,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 @required
 
+
+/// 相机配置结果
+/// - Parameters:
+///   - result: SYSessionSetupResult
+///   - manager: SYCameraManager
+- (void)cameraSessionSetupResult:(SYSessionSetupResult)result withManager:(SYCameraManager *)manager;
+
 /// 相机已启动
 /// - Parameter manager: SYCameraManager
 - (void)cameraDidStarted:(SYCameraManager *)manager;
@@ -83,8 +90,7 @@ NS_ASSUME_NONNULL_BEGIN
 @interface SYCameraManager : NSObject
 
 @property (nullable, nonatomic, weak) id<SYCameraManagerDelegate> delegate;
-@property (nonatomic, assign, readonly) BOOL isAuthority;
-@property (nonatomic, assign) UIDeviceOrientation deviceOrientation;
+@property (nonatomic, assign, readonly) SYSessionSetupResult result;
 @property (nonatomic, assign, readonly) SYRecordStatus recordStatus;
 @property (nonatomic, assign, readonly) SYCameraMode cameraMode;
 
@@ -94,13 +100,13 @@ NS_ASSUME_NONNULL_BEGIN
 
 
 /// 是否支持多摄像头
-+ (BOOL)isMultiCamSupported API_AVAILABLE(ios(13.0), macCatalyst(14.0), tvos(17.0)) API_UNAVAILABLE(macos, visionos) API_UNAVAILABLE(watchos);
++ (BOOL)isMultiCamSupported;
 
 /// 创建相机
 /// - Parameters:
 ///   - config: SYCameraConfig
 ///   - completion: 创建回调
-- (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
+- (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(SYSessionSetupResult result))completion;
 
 
 /// 将预览视图添加到 View 上

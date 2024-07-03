@@ -61,6 +61,9 @@ static NSString *TAG = @"SYMultiCamera";
     
     if (error) {
         SYLog(TAG, "setupVideoDeviceInput initWithDevice frontVideoInput failure，error = %@", error.description);
+        if (self.delegateMap.cameraSessionSetupResult) {
+            [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+        }
         return;
     }
     
@@ -68,6 +71,9 @@ static NSString *TAG = @"SYMultiCamera";
     
     if (error) {
         SYLog(TAG, "setupVideoDeviceInput initWithDevice backVideoInput failure，error = %@", error.description);
+        if (self.delegateMap.cameraSessionSetupResult) {
+            [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+        }
         return;
     }
     
@@ -81,6 +87,10 @@ static NSString *TAG = @"SYMultiCamera";
     } else {
         if (frontVideoInput) {
             [self.session addInputWithNoConnections:_frontVideoInput];
+        } else {
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         SYLog(TAG, "setupVideoDeviceInput addFrontInput failure");
     }
@@ -95,6 +105,10 @@ static NSString *TAG = @"SYMultiCamera";
     } else {
         if (_backVideoInput) {
             [self.session addInput:_backVideoInput];
+        } else {
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         SYLog(TAG, "setupVideoDeviceInput addBackInput failure");
     }
@@ -108,6 +122,9 @@ static NSString *TAG = @"SYMultiCamera";
     
     if (frontDeviceVideoPort == nil || backDeviceVideoPort == nil) {
         SYLog(TAG, "setupVideoOutput input port is nil");
+        if (self.delegateMap.cameraSessionSetupResult) {
+            [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+        }
     }
     
     if (_frontVideoOutput == nil) {
@@ -119,6 +136,9 @@ static NSString *TAG = @"SYMultiCamera";
             [self.session addOutputWithNoConnections:_frontVideoOutput];
         } else {
             SYLog(TAG, "setupVideoOutput addFrontOutput failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         
         AVCaptureConnection *frontInputConnection = [[AVCaptureConnection alloc] initWithInputPorts:@[frontDeviceVideoPort] output:_frontVideoOutput];
@@ -129,6 +149,9 @@ static NSString *TAG = @"SYMultiCamera";
             [frontInputConnection setVideoMirrored:YES];
         } else {
             SYLog(TAG, "setupVideoOutput addFrontConnection failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         
         if (self.delegateMap.getVideoPreviewForPosition) {
@@ -143,6 +166,9 @@ static NSString *TAG = @"SYMultiCamera";
                 [self.session addConnection:frontVideoPreviewLayerConnection];
             } else {
                 SYLog(TAG, "setupVideoOutput addFrontPreviewConnection failure");
+                if (self.delegateMap.cameraSessionSetupResult) {
+                    [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+                }
             }
         }
         
@@ -157,6 +183,9 @@ static NSString *TAG = @"SYMultiCamera";
             [self.session addOutputWithNoConnections:_backVideoOutput];
         } else {
             SYLog(TAG, "setupVideoOutput addFrontOutput failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         
         AVCaptureConnection *backInputConnection = [[AVCaptureConnection alloc] initWithInputPorts:@[backDeviceVideoPort] output:_backVideoOutput];
@@ -165,6 +194,9 @@ static NSString *TAG = @"SYMultiCamera";
             [backInputConnection setVideoOrientation:AVCaptureVideoOrientationPortrait];
         } else {
             SYLog(TAG, "setupVideoOutput addBackConnection failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
         
         if (self.delegateMap.getVideoPreviewForPosition) {
@@ -179,6 +211,9 @@ static NSString *TAG = @"SYMultiCamera";
                 [self.session addConnection:backVideoPreviewLayerConnection];
             } else {
                 SYLog(TAG, "setupVideoOutput addBackPreviewConnection failure");
+                if (self.delegateMap.cameraSessionSetupResult) {
+                    [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+                }
             }
         }
     }
@@ -193,6 +228,9 @@ static NSString *TAG = @"SYMultiCamera";
             [self.session addOutput:_frontPhotoOutput];
         } else {
             SYLog(TAG, "setupPhotoOutput addFrontOutput failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
     }
     
@@ -203,6 +241,9 @@ static NSString *TAG = @"SYMultiCamera";
             [self.session addOutput:_backPhotoOutput];
         } else {
             SYLog(TAG, "setupPhotoOutput addBackOutput failure");
+            if (self.delegateMap.cameraSessionSetupResult) {
+                [self.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+            }
         }
     }
 }
@@ -275,5 +316,7 @@ static NSString *TAG = @"SYMultiCamera";
         }
     }
 }
+
+
 
 @end

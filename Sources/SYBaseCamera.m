@@ -85,6 +85,9 @@ static NSString *TAG = @"SYBaseCamera";
            
             if (![strongSelf setupCameraDevice]) {
                 SYLog(TAG, "initWithSessionPreset setupCameraDevice failure");
+                if (strongSelf->_delegateMap.cameraSessionSetupResult) {
+                    [strongSelf.delegate cameraSessionSetupResult:SYSessionSetupConfigurationFailed];
+                }
                 return;
             }
             [strongSelf configureSesson: sessionPreset];
@@ -116,6 +119,7 @@ static NSString *TAG = @"SYBaseCamera";
     _delegateMap.cameraWillProcessPhoto = [delegate respondsToSelector:@selector(cameraWillProcessPhoto)];
     _delegateMap.cameraDidChangeMode = [delegate respondsToSelector:@selector(cameraDidChangeMode:)];
     _delegateMap.getVideoPreviewForPosition = [delegate respondsToSelector:@selector(getVideoPreviewForPosition:)];
+    _delegateMap.cameraSessionSetupResult = [delegate respondsToSelector:@selector(cameraSessionSetupResult:)];
 }
 
 - (void)changeCameraMode:(SYCameraMode)mode
@@ -291,7 +295,7 @@ static NSString *TAG = @"SYBaseCamera";
     }
     
     self->_cameraPosition = position;
-    BOOL ret = [self setupCameraDevice];
+    BOOL _ = [self setupCameraDevice];
     __weak typeof(self)weakSelf = self;
     dispatch_async(_sessionQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;

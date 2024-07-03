@@ -48,20 +48,19 @@ class DualViewController: UIViewController {
     
     override func viewDidAppear(_ animated: Bool) {
         super.viewDidAppear(animated)
-        if cameraManager.isAuthority {
+        if cameraManager.result == .success {
             cameraManager.startCapture()
             motion.motionStart { [weak self](orientation) in
                 guard let `self` = self else {
                     return
                 }
-                self.cameraManager.deviceOrientation = orientation;
             }
         }
     }
     
     override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
-        if cameraManager.isAuthority {
+        if cameraManager.result == .success {
             cameraManager.stopCapture()
             motion.motionStop()
         }
@@ -189,7 +188,7 @@ class DualViewController: UIViewController {
         
         cameraManager.requestCamera(with: config) { [weak self](ret) in
             guard let `self` = self else { return }
-            if ret {
+            if ret == .success {
                 self.cameraManager.delegate = self
                 self.cameraManager.addPreview(to: self.previewView)
                 self.cameraManager.startCapture()
@@ -221,64 +220,39 @@ class DualViewController: UIViewController {
     }
     
     @objc private func takePhoto() {
-        if !cameraManager.isAuthority {
+        if cameraManager.result != .success {
             return
         }
         cameraManager.takePhoto()
     }
     
     @objc private func cameraFilp() {
-        if cameraManager.isAuthority {
-            isBacking = !isBacking
-            cameraManager.changeCameraPosition(isBacking ? .back : .front)
-        }
+        
     }
 
     @objc private func changeCameraMode(_ control: UISegmentedControl) {
-        if !cameraManager.isAuthority {
-            return
-        }
-        if control.selectedSegmentIndex == 0 {
-            cameraManager.changeCameraMode(.photoMode, withSessionPreset: nil)
-        } else if control.selectedSegmentIndex == 1 {
-            cameraManager.changeCameraMode(.videoMode, withSessionPreset: nil)
-        }
+        
     }
     
     @objc private func handleRecordEvent(_ button: UIButton) {
-        if !cameraManager.isAuthority {
-            return
-        }
-        if recordMode == .recordNormal {
-            cameraManager.startRecord()
-        } else {
-            cameraManager.stopRecord()
-        }
+        
     }
     
     @objc private func handleTapEvent(_ sender: UITapGestureRecognizer) {
-        if !cameraManager.isAuthority {
-            return
-        }
-        let point = sender.location(in: previewView)
-        cameraManager.focus(with: point, mode: .autoFocus)
-        cameraManager.exposure(with: point, mode: .autoExpose)
+        
     }
     
     @objc private func handlePinchEvent(_ sender: UIPinchGestureRecognizer) {
         
-        if !cameraManager.isAuthority {
-            return
-        }
-        
-        let scale = sender.scale
-        currentZoom = scale;
-        cameraManager.setZoom(currentZoom, withAnimated: true)
     }
 
 }
 
 extension DualViewController: SYCameraManagerDelegate {
+    func cameraSessionSetupResult(_ result: SYSessionSetupResult, with manager: SYCameraManager) {
+        
+    }
+    
     func cameraDidStarted(_ manager: SYCameraManager) {
         
     }
