@@ -10,8 +10,7 @@
 
 static NSString *TAG = @"SYMultiCamera";
 
-@interface SYMultiCamera ()
-{
+@interface SYMultiCamera () {
     AVCaptureDevice *_frontDevice;
     AVCaptureDevice *_backDevice;
     AVCaptureDeviceInput *_frontVideoInput;
@@ -26,14 +25,12 @@ static NSString *TAG = @"SYMultiCamera";
 
 @implementation SYMultiCamera
 
-- (void)dealloc
-{
+- (void)dealloc {
     [_frontVideoOutput setSampleBufferDelegate:nil queue:nil];
     [_backVideoOutput setSampleBufferDelegate:nil queue:nil];
 }
 
-- (void)setupCaptureSession
-{
+- (void)setupCaptureSession {
     self.session = [[AVCaptureMultiCamSession alloc] init];
     if (self.delegateMap.getVideoPreviewForPosition) {
         SYPreviewView *backView = [self.delegate getVideoPreviewForPosition:AVCaptureDevicePositionBack];
@@ -45,8 +42,7 @@ static NSString *TAG = @"SYMultiCamera";
     
 }
 
-- (BOOL)setupCameraDevice
-{
+- (BOOL)setupCameraDevice {
     SYLog(TAG, "setupCameraDevice");
     _frontDevice = [self fetchCameraDeviceWithPosition:AVCaptureDevicePositionFront];
     _backDevice = [self fetchCameraDeviceWithPosition:AVCaptureDevicePositionBack];
@@ -57,8 +53,7 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)setupVideoDeviceInput
-{
+- (void)setupVideoDeviceInput {
     SYLog(TAG, "setupVideoDeviceInput");
     
     NSError *error = nil;
@@ -105,8 +100,7 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)setupVideoOutput
-{
+- (void)setupVideoOutput {
     SYLog(TAG, "setupVideoOutput");
     
     AVCaptureInputPort *frontDeviceVideoPort = [[_frontVideoInput portsWithMediaType:AVMediaTypeVideo sourceDeviceType:_frontDevice.deviceType sourceDevicePosition:_frontDevice.position] firstObject];
@@ -190,8 +184,7 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)setupPhotoOutput
-{
+- (void)setupPhotoOutput {
     SYLog(TAG, "setupPhotoOutput");
     if (_frontPhotoOutput == nil) {
         _frontPhotoOutput = [AVCapturePhotoOutput new];
@@ -214,8 +207,7 @@ static NSString *TAG = @"SYMultiCamera";
     }
 }
 
-- (void)takePhoto
-{
+- (void)takePhoto {
     __weak typeof(self)weakSelf = self;
     dispatch_async(self.captureQueue, ^{
         __strong typeof(weakSelf)strongSelf = weakSelf;
@@ -225,31 +217,63 @@ static NSString *TAG = @"SYMultiCamera";
             return;
         }
         
-        NSDictionary *dict = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
-        AVCapturePhotoSettings *setting = [AVCapturePhotoSettings photoSettingsWithFormat:dict];
-        
-        // 设置高清晰
-        [setting setHighResolutionPhotoEnabled:YES];
-        // 防抖
-        [setting setAutoStillImageStabilizationEnabled:YES];
-        
-        if ([strongSelf->_frontDevice hasFlash]) {
-            [setting setFlashMode:strongSelf.flashMode];
+        if (strongSelf.cameraPosition == AVCaptureDevicePositionBack) {
+            [strongSelf takeBackCameraPhoto];
+        } else if (strongSelf.cameraPosition == AVCaptureDevicePositionFront) {
+            [strongSelf takeFrontCameraPhoto];
         }
-        
-        if (@available(iOS 13.0, *)) {
-            [setting setPhotoQualityPrioritization:AVCapturePhotoQualityPrioritizationBalanced];
-        }
-        
-        AVCaptureConnection *frontPhotoOutputConnection = [self->_frontPhotoOutput connectionWithMediaType:AVMediaTypeVideo];
-        if (frontPhotoOutputConnection) {
-            frontPhotoOutputConnection.videoMirrored = YES;
-        }
-        [strongSelf->_frontPhotoOutput capturePhotoWithSettings:setting delegate:self];
-        
-        AVCaptureConnection *backPhotoOutputConnection = [self->_backPhotoOutput connectionWithMediaType:AVMediaTypeVideo];
-        [strongSelf->_backPhotoOutput capturePhotoWithSettings:setting delegate:self];
     });
+}
+
+- (void)takeFrontCameraPhoto {
+    NSDictionary *dict = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
+    AVCapturePhotoSettings *setting = [AVCapturePhotoSettings photoSettingsWithFormat:dict];
+    
+    // 设置高清晰
+    [setting setHighResolutionPhotoEnabled:YES];
+    
+    if ([self->_frontDevice hasFlash]) {
+        [setting setFlashMode:self.flashMode];
+    }
+    
+    AVCaptureConnection *frontPhotoOutputConnection = [self->_frontPhotoOutput connectionWithMediaType:AVMediaTypeVideo];
+    if (frontPhotoOutputConnection) {
+        frontPhotoOutputConnection.videoMirrored = YES;
+    }
+    [self->_frontPhotoOutput capturePhotoWithSettings:setting delegate:self];
+}
+
+- (void)takeBackCameraPhoto {
+    NSDictionary *dict = @{(id)kCVPixelBufferPixelFormatTypeKey: @(kCVPixelFormatType_32BGRA)};
+    AVCapturePhotoSettings *setting = [AVCapturePhotoSettings photoSettingsWithFormat:dict];
+    
+    // 设置高清晰
+    [setting setHighResolutionPhotoEnabled:YES];
+    
+    if ([self->_backDevice hasFlash]) {
+        [setting setFlashMode:self.flashMode];
+    }
+    
+    [self->_backPhotoOutput capturePhotoWithSettings:setting delegate:self];
+}
+
+
+- (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error {
+    if (!self.delegateMap.cameraDidFinishProcessingPhoto) {
+        return;
+    }
+    
+    if (output == _frontPhotoOutput) {
+        [self.delegate cameraDidFinishProcessingPhoto:photo withPosition:AVCaptureDevicePositionFront error:error];
+        if (self.cameraPosition == AVCaptureDevicePositionFront) {
+            [self takeBackCameraPhoto];
+        }
+    } else if (output == _backPhotoOutput) {
+        [self.delegate cameraDidFinishProcessingPhoto:photo withPosition:AVCaptureDevicePositionBack error:error];
+        if (self.cameraPosition == AVCaptureDevicePositionBack) {
+            [self takeFrontCameraPhoto];
+        }
+    }
 }
 
 @end

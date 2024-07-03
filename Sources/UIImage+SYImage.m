@@ -9,90 +9,36 @@
 
 @implementation UIImage (SYImage)
 
-- (UIImage *)fixImageWithOrientation:(UIImageOrientation)ori withRatio:(CGFloat)ratio
-{
+- (UIImage *)fixImageWithRatio:(CGFloat)ratio isFront:(BOOL)isFront {
     // CGContext 理解成依附在画布上的一个窗口，画布严格遵循笛卡尔坐标系，窗口内的数据可见，窗口外的数据会被裁剪
-    // transform 是影响画布的绘制起点坐标轴的位置、走向、x轴y轴的方向，窗口的位置仍然不变
+    // transform 是影响画布的绘制起点坐标轴的位置、走向、x轴y轴的方向，窗口的位置仍然不变，且坐标方向不变
     // 当进行绘制的时候，严格按照从(0,0)开始
     CGImageRef cgImage = self.CGImage;
     int width = (int)CGImageGetWidth(cgImage);
     int height = (int)CGImageGetHeight(cgImage);
     
-    CGRect cropRect = CGRectZero;
+    CGRect cropRect;
     
     if (ratio > 0) {
-        switch (ori) {
-            case UIImageOrientationLeft:
-            case UIImageOrientationLeftMirrored:
-            case UIImageOrientationRight:
-            case UIImageOrientationRightMirrored: {
-                cropRect = [self calculateCropRect:CGSizeMake(width, height) ratio:1/ratio];
-                break;
-            }
-            default: {
-                cropRect = [self calculateCropRect:CGSizeMake(width, height) ratio:ratio];
-                break;
-            }
-        }
+        cropRect = [self calculateCropRect:CGSizeMake(height, width) ratio:ratio];
     } else {
         cropRect = CGRectMake(0, 0, width, height);
     }
     
     int contextW = CGRectGetWidth(cropRect);
     int contextH = CGRectGetHeight(cropRect);
-    
+    // x 轴向左，y 轴向上
     CGAffineTransform transform = CGAffineTransformIdentity;
-    switch (ori) {
-        case UIImageOrientationDown:
-        case UIImageOrientationDownMirrored: {
-            CGFloat translateW = contextW - (width - contextW) / 2;
-            CGFloat translateH = contextH - (height - contextH) / 2;
-            transform = CGAffineTransformTranslate(transform, translateW, translateH);
-            transform = CGAffineTransformRotate(transform, M_PI);
-            if (ori == UIImageOrientationDownMirrored) {
-                transform = CGAffineTransformTranslate(transform, contextW, 0);
-                transform = CGAffineTransformScale(transform, -1, 1);
-            }
-            break;
-        }
-        case UIImageOrientationLeft:
-        case  UIImageOrientationLeftMirrored: {
-            contextW = CGRectGetHeight(cropRect);
-            contextH = CGRectGetWidth(cropRect);
-            CGFloat translateW = contextW + (height - contextW) / 2;
-            CGFloat translateH = - (width - contextH) / 2;
-            transform = CGAffineTransformTranslate(transform, translateW, translateH);
-            transform = CGAffineTransformRotate(transform, M_PI_2);
-            if (ori == UIImageOrientationLeftMirrored) {
-                transform = CGAffineTransformTranslate(transform, contextH, 0);
-                transform = CGAffineTransformScale(transform, -1, 1);
-            }
-            break;
-        }
-        case UIImageOrientationRight:
-        case UIImageOrientationRightMirrored: {
-            contextW = CGRectGetHeight(cropRect);
-            contextH = CGRectGetWidth(cropRect);
-            CGFloat translateW = - (height - contextW) / 2;
-            CGFloat translateH = contextH - (width - contextH) / 2;
-            transform = CGAffineTransformTranslate(transform, translateW, translateH);
-            transform = CGAffineTransformRotate(transform, -M_PI_2);
-            if (ori == UIImageOrientationLeftMirrored) {
-                transform = CGAffineTransformTranslate(transform, contextH, 0);
-                transform = CGAffineTransformScale(transform, -1, 1);
-            }
-            break;
-        }
-        default: {
-            CGFloat translateW = - (width - contextW) / 2;
-            CGFloat translateH = - (height - contextH) / 2;
-            transform = CGAffineTransformTranslate(transform, translateW, translateH);
-            if (ori == UIImageOrientationUpMirrored) {
-                transform = CGAffineTransformTranslate(transform, contextW, 0);
-                transform = CGAffineTransformScale(transform, -1, 1);
-            }
-            break;
-        }
+    transform = CGAffineTransformTranslate(transform, 0, width);
+    transform = CGAffineTransformRotate(transform, -M_PI_2);
+    // x 轴向下，y 轴向右
+    if (isFront) {
+        transform = CGAffineTransformTranslate(transform, 0, height);
+        transform = CGAffineTransformScale(transform, 1, -1);
+        // x 轴向下，y 轴向左
+        transform = CGAffineTransformTranslate(transform,  (width-contextH)/2, (height-contextW)/2);
+    } else {
+        transform = CGAffineTransformTranslate(transform, (width-contextH)/2, -(height-contextW)/2);
     }
     
     CGColorSpaceRef colorSpace = CGImageGetColorSpace(cgImage);
@@ -105,6 +51,36 @@
     CGImageRelease(newCGImage);
     CGContextRelease(context);
     return newImage;
+}
+
++ (UIImage *)stitchDualImages:(NSArray<UIImage *> *)images andRects:(NSArray<NSValue *> *)rects {
+    size_t outputWidth;
+    size_t outputHeigth;
+    
+    UIImage *firstImage = images[0];
+    UIImage *secondImage = images[1];
+    CGRect firstRect = [rects[0] CGRectValue];
+    CGRect secondRect = [rects[1] CGRectValue];
+    
+    outputWidth = firstImage.size.width / firstRect.size.width;
+    outputHeigth = firstImage.size.height / firstRect.size.height;
+    
+    CGColorSpaceRef colorSpace = CGColorSpaceCreateDeviceRGB();
+    CGContextRef context = CGBitmapContextCreate(NULL,
+                                                 outputWidth,
+                                                 outputHeigth,
+                                                 8,
+                                                 outputWidth * 4,
+                                                 colorSpace,
+                                                 kCGBitmapByteOrderDefault | kCGImageAlphaPremultipliedFirst);
+    if (!context) return nil;
+    CGContextDrawImage(context, CGRectMake(outputWidth * firstRect.origin.x, outputHeigth * (1 - firstRect.origin.y - firstRect.size.height), outputWidth * firstRect.size.width, outputHeigth * firstRect.size.height), firstImage.CGImage);
+    CGContextDrawImage(context, CGRectMake(outputWidth * secondRect.origin.x, outputHeigth * (1 - secondRect.origin.y - secondRect.size.height), outputWidth * secondRect.size.width, outputHeigth * secondRect.size.height), secondImage.CGImage);
+    CGImageRef imgRef = CGBitmapContextCreateImage(context);
+    UIImage *img = [UIImage imageWithCGImage:imgRef scale:1.0 orientation:UIImageOrientationUp];
+    CGImageRelease(imgRef);
+    CGContextRelease(context);
+    return img;
 }
 
 - (CGRect)calculateCropRect:(CGSize)size ratio:(CGFloat)ratio

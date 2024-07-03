@@ -40,7 +40,8 @@ static NSString * TAG = @"SYCameraManager";
     SYRecorder *_recorder;
     CGSize _sampleBufferSize;
     BOOL _audioProcessing;
-    NSDictionary<NSNumber *, NSValue *> *_previewViewRects;
+    NSMutableDictionary<NSNumber *, NSValue *> *_previewViewRects;
+    NSMutableDictionary<NSNumber *, AVCapturePhoto *> *_multiPhotos;
 }
 
 @property (nonatomic, assign, readwrite) BOOL isAuthority;
@@ -54,26 +55,25 @@ static NSString * TAG = @"SYCameraManager";
 
 @implementation SYCameraManager
 
-+ (BOOL)isMultiCamSupported
-{
++ (BOOL)isMultiCamSupported {
     return NO;
 }
 
-- (instancetype)init
-{
+- (instancetype)init {
     self = [super init];
     if (self) {
         _sampleBufferSize = CGSizeMake(1080, 1920);
         _deviceType = SYSingleDevice;
         _deviceOrientation = UIDeviceOrientationPortrait;
         _recordStatus = SYRecordNormal;
+        _multiPhotos = [NSMutableDictionary dictionary];
+        _previewViewRects = [NSMutableDictionary dictionary];
     }
     return self;
 }
 
-- (void)requestCameraWithConfig:(SYCameraConfig *)config 
-                 withCompletion:(void (^)(BOOL))completion
-{
+- (void)requestCameraWithConfig:(SYCameraConfig *)config
+                 withCompletion:(void (^)(BOOL))completion {
     self.isAuthority = YES;
     AVAuthorizationStatus status = [AVCaptureDevice authorizationStatusForMediaType:AVMediaTypeVideo];
     if (status != AVAuthorizationStatusAuthorized) {
@@ -91,7 +91,9 @@ static NSString * TAG = @"SYCameraManager";
         }
     }
     _deviceType = config.type;
-    _previewViewRects = config.previewViewRects;
+    if (config.previewViewRects) {
+        _previewViewRects = [NSMutableDictionary dictionaryWithDictionary:config.previewViewRects];
+    }
     [self configurePreviewView];
     _camera = [SYBaseCamera createCameraWithConfig:config withDelegate:self];
     _camera.delegate = self;
@@ -99,8 +101,7 @@ static NSString * TAG = @"SYCameraManager";
     completion(self.isAuthority);
 }
 
-- (void)configurePreviewView
-{
+- (void)configurePreviewView {
     switch (_deviceType) {
         case SYSingleDevice: {
             SYPreviewView *previewView = [SYPreviewView new];
@@ -123,8 +124,7 @@ static NSString * TAG = @"SYCameraManager";
     }
 }
 
-- (void)changeCameraMode:(SYCameraMode)mode withSessionPreset:(AVCaptureSessionPreset)preset
-{
+- (void)changeCameraMode:(SYCameraMode)mode withSessionPreset:(AVCaptureSessionPreset)preset {
     if (!_camera) {
         SYLog(TAG, "changeCameraMode camera is nil");
         return;
@@ -144,8 +144,7 @@ static NSString * TAG = @"SYCameraManager";
     [_camera changeCameraMode:mode withSessionPreset:sessionPreset];
 }
 
-- (void)addPreviewToView:(UIView *)view
-{
+- (void)addPreviewToView:(UIView *)view {
     if (!_camera) {
         SYLog(TAG, "addPreviewToView camera is nil");
         return;
@@ -162,8 +161,7 @@ static NSString * TAG = @"SYCameraManager";
     }
 }
 
-- (void)addSinglePreviewViewToView:(UIView *)view
-{
+- (void)addSinglePreviewViewToView:(UIView *)view {
     SYPreviewView *previewView = _previewViews[@(_camera.cameraPosition)];
     if (previewView.superview) {
         [previewView removeFromSuperview];
@@ -180,8 +178,7 @@ static NSString * TAG = @"SYCameraManager";
     ]];
 }
 
-- (void)addDualPreviewViewToView:(UIView *)view
-{
+- (void)addDualPreviewViewToView:(UIView *)view {
     SYPreviewView *backPreviewView = _previewViews[@(AVCaptureDevicePositionBack)];
     SYPreviewView *frontPreviewView = _previewViews[@(AVCaptureDevicePositionFront)];
     if (backPreviewView.superview) {
@@ -211,12 +208,14 @@ static NSString * TAG = @"SYCameraManager";
         backRect = [_previewViewRects[@(AVCaptureDevicePositionBack)] CGRectValue];
     } else {
         backRect = CGRectMake(0, 0, 1, 0.5);
+        _previewViewRects[@(AVCaptureDevicePositionBack)] = [NSValue valueWithCGRect:backRect];
     }
     
     if (_previewViewRects[@(AVCaptureDevicePositionFront)]) {
         frontRect = [_previewViewRects[@(AVCaptureDevicePositionFront)] CGRectValue];
     } else {
         frontRect = CGRectMake(0, 0.5, 1, 0.5);
+        _previewViewRects[@(AVCaptureDevicePositionFront)] = [NSValue valueWithCGRect:frontRect];
     }
     
     
@@ -239,8 +238,7 @@ static NSString * TAG = @"SYCameraManager";
     
 }
 
-- (void)setDelegate:(id<SYCameraManagerDelegate>)delegate
-{
+- (void)setDelegate:(id<SYCameraManagerDelegate>)delegate {
     _delegate = delegate;
     _delegateCache.cameraDidStarted = [delegate respondsToSelector:@selector(cameraDidStarted:)];
     _delegateCache.cameraDidStoped = [delegate respondsToSelector:@selector(cameraDidStoped:)];
@@ -258,24 +256,21 @@ static NSString * TAG = @"SYCameraManager";
     _delegateCache.cameraRecordStatusDidChange = [delegate respondsToSelector:@selector(cameraRecordStatusDidChange:withManager:)];
 }
 
-- (void)changeCameraPosition:(AVCaptureDevicePosition)position 
-{
+- (void)changeCameraPosition:(AVCaptureDevicePosition)position {
     if (_camera == nil) {
         return;
     }
     [_camera changeCameraPosition:position];
 }
 
-- (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode
-{
+- (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode {
     if (_camera == nil) {
         return;
     }
     [_camera exposureWithPoint:point mode:mode];
 }
 
-- (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode 
-{
+- (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode {
     if (_camera == nil) {
         return;
     }
@@ -283,32 +278,28 @@ static NSString * TAG = @"SYCameraManager";
 }
 
 
-- (void)startCapture 
-{
+- (void)startCapture {
     if (_camera == nil) {
         return;
     }
     [_camera startCapture];
 }
 
-- (void)stopCapture 
-{
+- (void)stopCapture {
     if (_camera == nil) {
         return;
     }
     [_camera stopCapture];
 }
 
-- (void)takePhoto 
-{
+- (void)takePhoto {
     if (_camera == nil) {
         return;
     }
     [_camera takePhoto];
 }
 
-- (void)startRecord
-{
+- (void)startRecord {
     if (_camera == nil) {
         if (_delegateCache.cameraRecordStatusDidChange) {
             [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self];
@@ -333,15 +324,13 @@ static NSString * TAG = @"SYCameraManager";
     }];
 }
 
-- (void)realStartRecord
-{
+- (void)realStartRecord {
     SYRecordConfig *config = [[SYRecordConfig alloc] initWithSize:_sampleBufferSize];
     _recorder = [[SYRecorder alloc] initWithConfig:config];
     [_recorder startRecord];
 }
 
-- (void)stopRecord
-{
+- (void)stopRecord {
     if (_camera == nil) {
         if (_delegateCache.cameraRecordStatusDidChange) {
             [_delegate cameraRecordStatusDidChange:_recordStatus withManager:self];
@@ -374,8 +363,7 @@ static NSString * TAG = @"SYCameraManager";
     }];
 }
 
-- (void)realStopRecordWithCompletion:(void(^)(void))completion
-{
+- (void)realStopRecordWithCompletion:(void(^)(void))completion {
     __weak typeof(self)weakSelf = self;
     [_recorder stopRecordWithCompletion:^(NSURL * _Nullable outputURL, BOOL ret) {
         __strong typeof(weakSelf)strongSelf = weakSelf;
@@ -389,24 +377,21 @@ static NSString * TAG = @"SYCameraManager";
     }];
 }
 
-- (void)pauseRecord
-{
+- (void)pauseRecord {
     if (_camera == nil || _recorder == nil) {
         return;
     }
     _recordStatus = SYRecordPause;
 }
 
-- (void)resumeRecord
-{
+- (void)resumeRecord {
     if (_camera == nil || _recorder == nil) {
         return;
     }
     _recordStatus = SYRecording;
 }
 
-- (UIImage *)imageFromPixelBuffer:(CVPixelBufferRef) pixelbuffer
-{
+- (UIImage *)imageFromPixelBuffer:(CVPixelBufferRef) pixelbuffer {
     CIImage *ciImage = [CIImage imageWithCVPixelBuffer:pixelbuffer];
     CIContext *context = [CIContext contextWithOptions:nil];
     CGImageRef videoImage = [context createCGImage:ciImage fromRect:CGRectMake(0, 0, CVPixelBufferGetWidth(pixelbuffer), CVPixelBufferGetHeight(pixelbuffer))];
@@ -415,8 +400,7 @@ static NSString * TAG = @"SYCameraManager";
     return image;
 }
 
-- (void)setDeviceOrientation:(UIDeviceOrientation)orientation 
-{
+- (void)setDeviceOrientation:(UIDeviceOrientation)orientation {
     _deviceOrientation = orientation;
     if (_camera) {
         AVCaptureVideoOrientation videoOrientation = [self convertOrientation:orientation];
@@ -424,8 +408,7 @@ static NSString * TAG = @"SYCameraManager";
     }
 }
 
-- (AVCaptureVideoOrientation)convertOrientation:(UIDeviceOrientation)orientation
-{
+- (AVCaptureVideoOrientation)convertOrientation:(UIDeviceOrientation)orientation {
     AVCaptureVideoOrientation videoOrientation = AVCaptureVideoOrientationPortrait;
     switch (orientation) {
         case UIDeviceOrientationPortrait: {
@@ -451,8 +434,7 @@ static NSString * TAG = @"SYCameraManager";
     return videoOrientation;
 }
 
-- (SYCameraMode)cameraMode
-{
+- (SYCameraMode)cameraMode {
     if (_camera) {
         return _camera.mode;
     } else {
@@ -460,79 +442,129 @@ static NSString * TAG = @"SYCameraManager";
     }
 }
 
-- (CGFloat)zoom
-{
+- (CGFloat)zoom {
     if (!_camera) {
         return 0.0;
     }
     return [_camera zoom];
 }
 
-- (CGFloat)minZoom
-{
+- (CGFloat)minZoom {
     if (!_camera) {
         return 0.0;
     }
     return [_camera minZoom];
 }
 
-- (CGFloat)maxZoom
-{
+- (CGFloat)maxZoom {
     if (!_camera) {
         return 0.0;
     }
     return [_camera maxZoom];
 }
 
-- (void)setZoom:(CGFloat)zoom withAnimated:(BOOL)animated
-{
+- (void)setZoom:(CGFloat)zoom withAnimated:(BOOL)animated {
     if (!_camera) {
         return;
     }
     [_camera setZoom:zoom withAnimated:animated];
 }
 
+- (void)handleSingleCameraPhoto:(AVCapturePhoto *)photo withPosition:(AVCaptureDevicePosition)position {
+    NSData *imageData = [photo fileDataRepresentation];
+    if (imageData == nil) {
+        [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:nil];
+        return;
+    }
+    SYPreviewView *previewView = _previewViews[@(position)];
+    UIImage *image = [[UIImage alloc] initWithData:imageData];
+    CGFloat ratio = CGRectGetWidth(previewView.frame) / CGRectGetHeight(previewView.frame);
+    UIImage *fixImage = [image fixImageWithRatio:ratio isFront:position == AVCaptureDevicePositionFront];
+    [_delegate cameraDidFinishProcessingPhoto:fixImage withMetaData:photo.metadata withManager:self withError:nil];
+}
+
+- (void)handleDualCameraPhoto:(AVCapturePhoto *)photo withPosition:(AVCaptureDevicePosition)position {
+    if (_camera.cameraPosition == position) {
+        _multiPhotos = [NSMutableDictionary dictionaryWithDictionary:@{@(position): photo}];
+    } else {
+        _multiPhotos[@(position)] = photo;
+    }
+    
+    if (_multiPhotos.count != 2) {
+        return;
+    }
+    
+    AVCapturePhoto *backPhoto = _multiPhotos[@(AVCaptureDevicePositionBack)];
+    AVCapturePhoto *frontPhoto = _multiPhotos[@(AVCaptureDevicePositionFront)];
+    [_multiPhotos removeAllObjects];
+    
+    NSData *backImgData = [backPhoto fileDataRepresentation];
+    NSData *frontImgData = [frontPhoto fileDataRepresentation];
+    
+    if (!backImgData || !frontImgData) {
+        [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:nil];
+        return;
+    }
+    
+    UIImage *backImage = [[UIImage alloc] initWithData:backImgData];
+    UIImage *frontImage = [[UIImage alloc] initWithData:frontImgData];
+    SYPreviewView *backView = _previewViews[@(AVCaptureDevicePositionBack)];
+    SYPreviewView *frontView = _previewViews[@(AVCaptureDevicePositionFront)];
+    CGFloat backRatio = CGRectGetWidth(backView.frame) / CGRectGetHeight(backView.frame);
+    CGFloat frontRatio = CGRectGetWidth(frontView.frame) / CGRectGetHeight(frontView.frame);
+    UIImage *backFixImage = [backImage fixImageWithRatio:backRatio isFront:NO];
+    UIImage *frontFixImage = [frontImage fixImageWithRatio:frontRatio isFront:YES];
+    UIImage *productImage;
+    if (position == AVCaptureDevicePositionFront) {
+        productImage = [UIImage stitchDualImages:@[backFixImage, frontFixImage] andRects:@[_previewViewRects[@(AVCaptureDevicePositionBack)], _previewViewRects[@(AVCaptureDevicePositionFront)]]];
+    } else {
+        productImage = [UIImage stitchDualImages:@[frontFixImage, backFixImage] andRects:@[_previewViewRects[@(AVCaptureDevicePositionFront)], _previewViewRects[@(AVCaptureDevicePositionBack)]]];
+    }
+    [_delegate cameraDidFinishProcessingPhoto:productImage withMetaData:nil withManager:self withError:nil];
+}
+
 #pragma mark - SYCameraDelegate
 
-
-- (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
-{
+- (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *)photo withPosition:(AVCaptureDevicePosition)position error:(NSError *)error {
     if (_delegateCache.cameraDidFinishProcessingPhoto) {
-        NSData *imageData = [photo fileDataRepresentation];
-        if (imageData == nil) {
+        if (error) {
             [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
-            return;
-        }
-        SYPreviewView *previewView = _previewViews[@(_camera.cameraPosition)];
-        UIImage *image = [[UIImage alloc] initWithData:imageData];
-        CGFloat ratio = CGRectGetWidth(previewView.frame) / CGRectGetHeight(previewView.frame);
-        UIImage *fixImage = [image fixImageWithOrientation:image.imageOrientation withRatio:ratio];
-        
-        if (fixImage == nil) {
-            [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
+            [_multiPhotos removeAllObjects];
             return;
         }
         
-        [_delegate cameraDidFinishProcessingPhoto:fixImage withMetaData:photo.metadata withManager:self withError:error];
+        if (photo == nil) {
+            [_delegate cameraDidFinishProcessingPhoto:nil withMetaData:nil withManager:self withError:error];
+            [_multiPhotos removeAllObjects];
+            return;
+        }
+        
+        switch (_deviceType) {
+            case SYSingleDevice: {
+                [self handleSingleCameraPhoto:photo withPosition:position];
+                break;
+            }
+            case SYDualDevice: {
+                [self handleDualCameraPhoto:photo withPosition:position];
+                break;
+            }
+        }
     }
 }
 
-- (void)cameraDidStarted
-{
+- (void)cameraDidStarted {
     if (_delegateCache.cameraDidStarted) {
         [_delegate cameraDidStarted:self];
     }
 }
 
-- (void)cameraDidStoped
-{
+- (void)cameraDidStoped {
     if (_delegateCache.cameraDidStoped) {
         [_delegate cameraDidStoped:self];
     }
 }
 
-- (void)cameraCaptureVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer
-{
+- (void)cameraCaptureVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer {
     if (_camera && _recorder && _camera.mode == SYVideoMode && _recordStatus == SYRecording) {
         [_recorder appendVideo:sampleBuffer];
     }
@@ -541,71 +573,61 @@ static NSString * TAG = @"SYCameraManager";
     }
 }
 
-- (void)cameraCaptureAudioSampleBuffer:(CMSampleBufferRef)sampleBuffer
-{
+- (void)cameraCaptureAudioSampleBuffer:(CMSampleBufferRef)sampleBuffer {
     if (_camera && _recorder && _camera.mode == SYVideoMode && _recordStatus == SYRecording) {
         [_recorder appendAudio:sampleBuffer];
     }
 }
 
-- (void)cameraDidChangePosition:(BOOL)backFacing
-{
+- (void)cameraDidChangePosition:(BOOL)backFacing {
     if (_delegateCache.changedPosition) {
         [_delegate cameraDidChangedPosition:backFacing withManager:self];
     }
 }
 
-- (void)cameraDidChangeFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode
-{
+- (void)cameraDidChangeFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode {
     if (_delegateCache.changedFocus) {
         [_delegate cameraDidChangedFocus:value mode:mode withManager:self];
     }
 }
 
-- (void)cameraDidChangeZoom:(CGFloat)value
-{
+- (void)cameraDidChangeZoom:(CGFloat)value {
     if (_delegateCache.changedZoom) {
         [_delegate cameraDidChangedZoom:value withManager:self];
     }
 }
 
-- (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode
-{
+- (void)cameraDidChangeExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode {
     if (_delegateCache.changedExposure) {
         [_delegate cameraDidChangedExposure:value mode:mode withManager:self];
     }
 }
 
-- (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode
-{
+- (void)camerahDidChangeFlash:(AVCaptureFlashMode)mode {
     if (_delegateCache.changedFlash) {
         [_delegate camerahDidChangedFlash:mode withManager:self];
     }
 }
 
-- (void)cameraDidChangeEV:(CGFloat)value
-{
+- (void)cameraDidChangeEV:(CGFloat)value {
     if (_delegateCache.changedEV) {
         [_delegate cameraDidChangedEV:value withManager:self];
     }
 }
 
-- (void)cameraWillProcessPhoto
-{
+- (void)cameraWillProcessPhoto {
     if (_delegateCache.cameraWillCapturePhoto) {
         [_delegate cameraWillCapturePhoto:self];
     }
 }
 
-- (void)cameraDidChangeMode:(SYCameraMode)mode
-{
+- (void)cameraDidChangeMode:(SYCameraMode)mode {
     if (_delegateCache.cameraDidChangeMode) {
         [_delegate cameraDidChangeMode:mode withManager:self];
     }
 }
 
-- (SYPreviewView *)getVideoPreviewForPosition:(AVCaptureDevicePosition)position
-{
+- (SYPreviewView *)getVideoPreviewForPosition:(AVCaptureDevicePosition)position {
     return _previewViews[@(position)];
 }
 

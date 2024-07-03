@@ -11,7 +11,9 @@ NS_ASSUME_NONNULL_BEGIN
 
 @interface UIImage (SYImage)
 
-- (UIImage *)fixImageWithOrientation:(UIImageOrientation)ori withRatio:(CGFloat)ratio;
+- (UIImage *)fixImageWithRatio:(CGFloat)ratio isFront:(BOOL)isFront;
+
++ (UIImage * _Nullable)stitchDualImages:(NSArray<UIImage *> *)images andRects:(NSArray<NSValue *> *)rects;
 
 @end
 

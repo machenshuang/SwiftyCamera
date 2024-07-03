@@ -106,7 +106,7 @@ static NSString *TAG = @"SYBaseCamera";
     _delegateMap.cameraDidStoped = [delegate respondsToSelector:@selector(cameraDidStoped)];
     _delegateMap.cameraCaptureVideoSampleBuffer = [delegate respondsToSelector:@selector(cameraCaptureVideoSampleBuffer:)];
     _delegateMap.cameraCaptureAudioSampleBuffer = [delegate respondsToSelector:@selector(cameraCaptureAudioSampleBuffer:)];
-    _delegateMap.cameraDidFinishProcessingPhoto = [delegate respondsToSelector:@selector(cameraDidFinishProcessingPhoto:error:)];
+    _delegateMap.cameraDidFinishProcessingPhoto = [delegate respondsToSelector:@selector(cameraDidFinishProcessingPhoto:withPosition:error:)];
     _delegateMap.changedPosition = [delegate respondsToSelector:@selector(cameraDidChangePosition:)];
     _delegateMap.changedFocus = [delegate respondsToSelector:@selector(cameraDidChangeFocus:mode:)];
     _delegateMap.changedZoom = [delegate respondsToSelector:@selector(cameraDidChangeZoom:)];
@@ -383,14 +383,9 @@ static NSString *TAG = @"SYBaseCamera";
     if (position == AVCaptureDevicePositionBack) {
         NSArray *deviceType;
         if (@available(iOS 13.0, *)) {
-            if ([self isKindOfClass:[SYMultiCamera class]]) {
-                AVCaptureDevice *backDevice = [AVCaptureDevice defaultDeviceWithDeviceType:AVCaptureDeviceTypeBuiltInWideAngleCamera mediaType:AVMediaTypeVideo position:position];
-                device = backDevice;
-            } else {
-                deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
-                AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
-                device = deviceSession.devices.firstObject;
-            }
+            deviceType = @[AVCaptureDeviceTypeBuiltInTripleCamera, AVCaptureDeviceTypeBuiltInDualWideCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
+            AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
+            device = deviceSession.devices.firstObject;
         } else {
             deviceType = @[AVCaptureDeviceTypeBuiltInDualCamera, AVCaptureDeviceTypeBuiltInWideAngleCamera];
             AVCaptureDeviceDiscoverySession *deviceSession = [AVCaptureDeviceDiscoverySession discoverySessionWithDeviceTypes:deviceType mediaType:AVMediaTypeVideo position:position];
@@ -419,7 +414,7 @@ static NSString *TAG = @"SYBaseCamera";
 - (void)captureOutput:(AVCapturePhotoOutput *)output didFinishProcessingPhoto:(AVCapturePhoto *)photo error:(NSError *)error
 {
     if (_delegateMap.cameraDidFinishProcessingPhoto) {
-        [_delegate cameraDidFinishProcessingPhoto:photo error:error];
+        [_delegate cameraDidFinishProcessingPhoto:photo withPosition:_cameraPosition error:error];
     }
 }
 

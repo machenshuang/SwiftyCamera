@@ -23,7 +23,7 @@ class PreviewViewController: UIViewController {
     var videoUrl: URL?
 
     override func viewDidLoad() {
-        self.view.backgroundColor = .black
+        self.view.backgroundColor = .white
         super.viewDidLoad()
         if let image = image {
             view.addSubview(imageView)

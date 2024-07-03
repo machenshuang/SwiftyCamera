@@ -18,6 +18,7 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)cameraDidStarted;
 - (void)cameraDidStoped;
 - (void)cameraDidFinishProcessingPhoto:(AVCapturePhoto *_Nullable)photo
+                          withPosition:(AVCaptureDevicePosition)position
                                  error:(NSError *_Nullable)error;
 
 - (void)cameraCaptureVideoSampleBuffer:(CMSampleBufferRef)sampleBuffer;
