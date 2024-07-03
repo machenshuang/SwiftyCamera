@@ -219,18 +219,20 @@ static NSString * TAG = @"SYCameraManager";
         frontRect = CGRectMake(0, 0.5, 1, 0.5);
     }
     
+    
+    
     backPreviewView.translatesAutoresizingMaskIntoConstraints = NO;
     [view addConstraints:@[
-        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeLeading multiplier:1+backRect.origin.x constant:0],
-        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTop multiplier:1+backRect.origin.y constant:0],
+        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeCenterX multiplier:(backRect.origin.x + backRect.size.width / 2) / 0.5 constant:0],
+        [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeCenterY relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeCenterY multiplier:(backRect.origin.y + backRect.size.height / 2) / 0.5 constant:0],
         [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeWidth multiplier:backRect.size.width constant:0],
         [NSLayoutConstraint constraintWithItem:backPreviewView attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeHeight multiplier:backRect.size.height constant:0],
     ]];
     
     frontPreviewView.translatesAutoresizingMaskIntoConstraints = NO;
     [view addConstraints:@[
-        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeLeading relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeLeading multiplier:1+frontRect.origin.x constant:0],
-        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeTop relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeTop multiplier:1+frontRect.origin.y constant:0],
+        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeCenterX relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeCenterX multiplier:(frontRect.origin.x + frontRect.size.width / 2 ) / 0.5 constant:0],
+        [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeCenterY relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeCenterY multiplier:(frontRect.origin.y + frontRect.size.height / 2) / 0.5 constant:0],
         [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeWidth relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeWidth multiplier:frontRect.size.width constant:0],
         [NSLayoutConstraint constraintWithItem:frontPreviewView attribute:NSLayoutAttributeHeight relatedBy:NSLayoutRelationEqual toItem:view attribute:NSLayoutAttributeHeight multiplier:frontRect.size.height constant:0],
     ]];
