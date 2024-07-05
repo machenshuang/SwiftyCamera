@@ -17,12 +17,30 @@ pod 'SwiftyCamera' :git => 'https://github.com/machenshuang/SwiftyCamera', :bran
 
 SwiftyCamera 通过 SYCameraConfig 配置相机的参数，使用 SYCameraManager 来管理相机对象，并用 SYCameraManagerDelegate 将相机的生命周期和状态回调给使用者。
 
-### 构建单摄相机
+### 构建相机
 
 构建单摄相机的过程：
 ```swift
 let config = SYCameraConfig()
 config.type = .singleDevice  // 单摄模式  
+config.mode = .photoMode  // 拍照模式
+cameraManager.requestCamera(with: config) { [weak self](ret) in
+    guard let `self` = self else { return }
+    if ret == .success {
+        // 设置 delegate
+        self.cameraManager.delegate = self 
+        // 将预览视图添加到 View 上
+        self.cameraManager.addPreview(to: self.previewView) 
+        // 启动相机
+        self.cameraManager.startCapture()  
+    }
+}
+```
+
+构建双摄相机的过程：
+```swift
+let config = SYCameraConfig()
+config.type = .dualDevice  // 双摄模式  
 config.mode = .photoMode  // 拍照模式
 cameraManager.requestCamera(with: config) { [weak self](ret) in
     guard let `self` = self else { return }
@@ -80,7 +98,7 @@ extension ViewController: SYCameraManagerDelegate {
 
 
 ### 切换拍照和录制模式
-切换拍照和录制模式如下代码所示：
+切换拍照和录制模式的过程：
 ```swift 
 @objc private func changeCameraMode(_ control: UISegmentedControl) {
     if cameraManager.result != .success {
@@ -173,7 +191,7 @@ extension ViewController: SYCameraManagerDelegate {
 
 ### 拍照
 
-拍照的流程：
+拍照的过程：
 ```swift
 @objc private func takePhoto() {
     if cameraManager.result != .success {
@@ -199,7 +217,7 @@ extension ViewController: SYCameraManagerDelegate {
 ```
 ### 切换录制模式
 
-切换录制模式流程：
+切换录制模式的过程：
 ```swift
 @objc private func changeCameraMode(_ control: UISegmentedControl) {
     if cameraManager.result != .success {
@@ -227,7 +245,7 @@ extension ViewController: SYCameraManagerDelegate {
 
 ## 开始录制和结束录制
 
-开始录制和结束录制如下代码所示：
+开始录制和结束录制的过程：
 ```swift
 @objc private func handleRecordEvent(_ button: UIButton) {
     if cameraManager.result != .success {
@@ -262,60 +280,6 @@ extension ViewController: SYCameraManagerDelegate {
         
     }    
 }
-```
-### 构建双摄相机
-
-双摄相机构建前，需要先判断当前设备和系统是否支持：
-```swift
-
-if SYCameraManager.isMultiCamSupported() {
-    // 开始构建双摄相机 
-}
-
-```
-
-双摄相机构建流程：
-```swift
-let config = SYCameraConfig()
-config.type = .dualDevice  // 双摄模式  
-config.mode = .photoMode  // 拍照模式
-cameraManager.requestCamera(with: config) { [weak self](ret) in
-    guard let `self` = self else { return }
-    if ret == .success {
-        // 设置 delegate
-        self.cameraManager.delegate = self 
-        // 将预览视图添加到 View 上
-        self.cameraManager.addPreview(to: self.previewView) 
-        // 启动相机
-        self.cameraManager.startCapture()  
-    }
-}
-```
-
-构建和启动结果会通过 SYCameraManagerDelegate 方法回调：
-```swift
-extension ViewController: SYCameraManagerDelegate {
-    /// 相机配置结果
-    /// - Parameters:
-    ///   - result: SYSessionSetupResult
-    ///   - manager: SYCameraManager
-    func cameraSessionSetupResult(_ result: SYSessionSetupResult, with manager: SYCameraManager) {
-        
-    }
-    
-    /// 相机已启动
-    /// - Parameter manager: SYCameraManager
-    func cameraDidStarted(_ manager: SYCameraManager) {
-        
-    }
-    
-    /// 相机已停止
-    /// - Parameter manager: SYCameraManager
-    func cameraDidStoped(_ manager: SYCameraManager) {
-        
-    }    
-}
-
 ```
 
 ## Author
