@@ -381,8 +381,7 @@ static NSString *TAG = @"SYBaseCamera";
     }
 }
 
-- (AVCaptureDevice *)fetchCameraDeviceWithPosition:(AVCaptureDevicePosition)position
-{
+- (AVCaptureDevice *)fetchCameraDeviceWithPosition:(AVCaptureDevicePosition)position {
     AVCaptureDevice *device;
     if (position == AVCaptureDevicePositionBack) {
         NSArray *deviceType;

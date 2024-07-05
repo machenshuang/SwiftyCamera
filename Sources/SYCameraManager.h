@@ -56,31 +56,75 @@ NS_ASSUME_NONNULL_BEGIN
                            withManager:(SYCameraManager *)manager
                              withError:(NSError *_Nullable)error;
 @optional
+
+/// 输出采样的数据
+/// - Parameter sampleBuffer: CMSampleBufferRef
 - (void)cameraDidOutputSampleBuffer:(CMSampleBufferRef _Nullable)sampleBuffer;
 
+
+/// 相机设备切换改变
+/// - Parameters:
+///   - backFacing: 设备位置
+///   - manager: SYCameraManager
 - (void)cameraDidChangedPosition:(BOOL)backFacing
                      withManager:(SYCameraManager *)manager;
 
+
+/// 相机焦点调整改变
+/// - Parameters:
+///   - value: 位置
+///   - mode: 模式
+///   - manager: SYCameraManager
 - (void)cameraDidChangedFocus:(CGPoint)value mode:(AVCaptureFocusMode)mode
                   withManager:(SYCameraManager *)manager;
 
+
+/// 相机焦距调整改变
+/// - Parameters:
+///   - value: 焦距
+///   - manager: SYCameraManager
 - (void)cameraDidChangedZoom:(CGFloat)value
                  withManager:(SYCameraManager *)manager;
 
+
+/// 相机曝光值调整改变
+/// - Parameters:
+///   - value: 曝光值
+///   - mode: 模式
+///   - manager: SYCameraManager
 - (void)cameraDidChangedExposure:(CGPoint)value mode:(AVCaptureExposureMode)mode
                      withManager:(SYCameraManager *)manager;
 
+/// 相机闪光灯状态改变
+/// - Parameters:
+///   - mode: 模式
+///   - manager: SYCameraManager
 - (void)camerahDidChangedFlash:(AVCaptureFlashMode)mode
                    withManager:(SYCameraManager *)manager;
 
+/// 相机 ev 值改变
+/// - Parameters:
+///   - value: ev 值
+///   - manager: SYCameraManager
 - (void)cameraDidChangedEV:(CGFloat)value
                withManager:(SYCameraManager *)manager;
 
+/// 即将拍照
+/// - Parameter manager: SYCameraManager
 - (void)cameraWillCapturePhoto:(SYCameraManager *)manager;
 
+
+/// 相机模式改变
+/// - Parameters:
+///   - mode: 模式
+///   - manager: SYCameraManager
 - (void)cameraDidChangeMode:(SYCameraMode)mode
                 withManager:(SYCameraManager *)manager;
 
+/// 相机录制状态改变
+/// - Parameters:
+///   - status: 录制状态
+///   - manager: SYCameraManager
 - (void)cameraRecordStatusDidChange:(SYRecordStatus)status
                         withManager:(SYCameraManager *)manager;
 
