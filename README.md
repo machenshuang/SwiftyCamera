@@ -15,174 +15,308 @@ pod 'SwiftyCamera' :git => 'https://github.com/machenshuang/SwiftyCamera', :bran
 
 ## 功能介绍
 
-### 相机创建
+SwiftyCamera 通过 SYCameraConfig 配置相机的参数，使用 SYCameraManager 来管理相机对象，并用 SYCameraManagerDelegate 将相机的生命周期和状态回调给使用者。
 
-创建相机前，需要先获取访问相机的权限，如果是录制还需要申请访问麦克风权限。SwiftyCamera 通过 SYCameraManager 来管理相机的生命周期和功能实现，通过 SYCameraManagerDelegate 来回调结果。
+### 构建单摄相机
 
-对于创建相机，需要先配置好参数，SwiftyCamera 用 SYCameraConfig 封装相机常用参数，如下图所示：
-```objc
-// 相机模式
-typedef NS_ENUM(NSUInteger, SYCameraMode) {
-    SYPhotoMode,    // 拍照模式
-    SYVideoMode,    // 录制模式
-    SYModeUnspecified,  // 未定义模式
-};
-
-@interface SYCameraConfig : NSObject
-
-@property (nonatomic, assign) SYCameraMode mode;
-@property (nonatomic, copy, nullable) AVCaptureSessionPreset sessionPreset;
-@property (nonatomic, assign) AVCaptureDevicePosition devicePosition;
-
-
-- (instancetype)init;
-
-/// 初始化相机配置
-/// - Parameters:
-///   - sessionPreset: AVCaptureSessionPreset
-///   - devicePosition: AVCaptureDevicePosition
-- (instancetype)initWithMode:(SYCameraMode)mode
-           withSessionPreset:(AVCaptureSessionPreset)sessionPreset
-                withPosition:(AVCaptureDevicePosition)devicePosition;
-@end
-```
-
-配置完 config 后，则通过 SYCameraManager 的 requestCameraWithConfig:withCompletion: 方法开始创建相机：
-```objc
-/// 创建相机
-/// - Parameters:
-///   - config: SYCameraConfig
-///   - completion: 创建回调
-- (void)requestCameraWithConfig:(SYCameraConfig *)config withCompletion:(void(^)(BOOL isAuthority))completion;
-```
-
-若回调成功，需要将相机的预览视图添加到展示的 View，目前预览视图的宽高和 View 是一样的，内部做了约束：
-```objc
-/// 将预览视图添加到 View 上
-/// - Parameter view: 展示的 View
-- (void)addPreviewToView:(UIView *)view;
-```
-
-之后便可以调用 SYCameraManager 的 startCapture 方法启动相机流，也可以通过 stopCapture 停止相机流：
-```
-/// 启动相机流
-- (void)startCapture;
-
-/// 停止相机流
-- (void)stopCapture;
-```
-delegate 也会回调相应的状态
- 
-```objc
-/// 相机已启动
-/// - Parameter manager: SYCameraManager
-- (void)cameraDidStarted:(SYCameraManager *)manager;
-
-
-/// 相机已停止
-/// - Parameter manager: SYCameraManager
-- (void)cameraDidStoped:(SYCameraManager *)manager;
-```
-
-综上所述，初始化相机其启动相机流的代码如下所示：
+构建单摄相机的过程：
 ```swift
 let config = SYCameraConfig()
-config.mode = cameraMode
-let cameraManager = SYCameraManager()
-// 初始值相机
+config.type = .singleDevice  // 单摄模式  
+config.mode = .photoMode  // 拍照模式
 cameraManager.requestCamera(with: config) { [weak self](ret) in
     guard let `self` = self else { return }
-    if ret {
-        self.cameraManager.delegate = self  // 设置 delegate，用于回调内容
-        self.cameraManager.addPreview(to: self.previewView) // 设置容器，用于展示相机预览
-        self.cameraManager.startCapture() // 启动相机
+    if ret == .success {
+        // 设置 delegate
+        self.cameraManager.delegate = self 
+        // 将预览视图添加到 View 上
+        self.cameraManager.addPreview(to: self.previewView) 
+        // 启动相机
+        self.cameraManager.startCapture()  
     }
 }
 ```
 
-### 相机拍照
+构建和启动结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机配置结果
+    /// - Parameters:
+    ///   - result: SYSessionSetupResult
+    ///   - manager: SYCameraManager
+    func cameraSessionSetupResult(_ result: SYSessionSetupResult, with manager: SYCameraManager) {
+        
+    }
+    
+    /// 相机已启动
+    /// - Parameter manager: SYCameraManager
+    func cameraDidStarted(_ manager: SYCameraManager) {
+        
+    }
+    
+    /// 相机已停止
+    /// - Parameter manager: SYCameraManager
+    func cameraDidStoped(_ manager: SYCameraManager) {
+        
+    }    
+}
 
-SwiftyCamera 提供了拍照功能，通过 SYCameraManager 的 takePhoto 方法实现拍照：
-```objc
-/// 拍照
-
-- (void)takePhoto;
 ```
 
-拍照结果通过 SYCameraManagerDelegate 回调回来：
-```objc
-/// 相机拍照结果
-/// - Parameters:
-///   - image: 图片
-///   - metaData: 摘要
-///   - manager: SYCameraManager
-///   - error: 错误
-- (void)cameraDidFinishProcessingPhoto:(UIImage *_Nullable)image
-                          withMetaData:(NSDictionary *_Nullable)metaData
-                           withManager:(SYCameraManager *)manager
-                             withError:(NSError *_Nullable)error;
+### 切换摄像头
+
+摄像头切换的过程：
+```swift
+@objc private func cameraFilp() {
+    // 判断相机状态
+    if cameraManager.result == .success {
+        isBacking = !isBacking
+        // 切换摄像头
+        cameraManager.changeCameraPosition(isBacking ? .back : .front)
+    }
+}
 ```
 
-### 视频录制
 
-SwiftyCamera 提供了视频录制功能，通过 SYCameraManager 的 startRecord 启动录制，stopRecord 结束录制：
-```objc
-/// 开始录屏
-- (void)startRecord;
 
-/// 结束录屏
-- (void)stopRecord;
+### 切换拍照和录制模式
+切换拍照和录制模式如下代码所示：
+```swift 
+@objc private func changeCameraMode(_ control: UISegmentedControl) {
+    if cameraManager.result != .success {
+        return
+   }
+    if control.selectedSegmentIndex == 0 {
+        // 切换拍照模式
+        cameraManager.changeCameraMode(.photoMode, withSessionPreset: nil)
+    } else if control.selectedSegmentIndex == 1 {
+        // 切换录制模式
+        cameraManager.changeCameraMode(.videoMode, withSessionPreset: nil)
+    }
+}
 ```
 
-录制结果通过 SYCameraManagerDelegate 回调回来：
-```objc
-/// 相机录制结果
-/// - Parameters:
-///   - outputURL: 保存路径
-///   - manager: SYCameraManager
-///   - error: error
-- (void)cameraDidFinishProcessingVideo:(NSURL *_Nullable)outputURL
-                           withManager:(SYCameraManager *)manager
-                             withError:(NSError *_Nullable)error;
+摄像头切换后的结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机设备切换改变
+    /// - Parameters:
+    ///   - backFacing: 是否是后置
+    ///   - manager: SYCameraManager
+    func cameraDidChangedPosition(_ backFacing: Bool, with manager: SYCameraManager) {
+        
+    } 
+}
 ```
 
-### 其他
-
-除此之外，SwiftCamera 提供了摄像头切换、焦距调整等其他功能：
-```objc
-/// 切换相机前后置
-/// - Parameter position: AVCaptureDevicePosition
-- (void)changeCameraPosition:(AVCaptureDevicePosition)position;
-
-
-/// 切换模式
-/// - Parameters:
-///   - mode: SYCameraMode
-///   - preset: AVCaptureSessionPreset
-- (void)changeCameraMode:(SYCameraMode)mode
-       withSessionPreset:(nullable AVCaptureSessionPreset)preset;
-
-
-/// 调整相机焦距
-/// - Parameters:
-///   - point: 焦距位置
-///   - mode: 模式
-- (void)focusWithPoint:(CGPoint)point mode:(AVCaptureFocusMode)mode;
-
-
-/// 调整相机曝光
-/// - Parameters:
-///   - point: 曝光位置
-///   - mode: 模式
-- (void)exposureWithPoint:(CGPoint)point mode:(AVCaptureExposureMode)mode;
-
-/// 调整缩放值
-/// - Parameters:
-///   - zoom: value
-///   - animated: 是否带动画
-- (void)setZoom:(CGFloat)zoom withAnimated:(BOOL)animated;
+### 调整焦点和曝光
+调整焦点和曝光的过程：
+```swift
+@objc private func handleTapEvent(_ sender: UITapGestureRecognizer) {
+    if cameraManager.result != .success {
+        return
+    }
+    let point = sender.location(in: previewView)
+    cameraManager.focus(with: point, mode: .autoFocus)
+    cameraManager.exposure(with: point, mode: .autoExpose)
+}
+```
+调整焦点和曝光的结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机焦点调整改变
+    /// - Parameters:
+    ///   - value: 位置
+    ///   - mode: 模式
+    ///   - manager: SYCameraManager
+    func cameraDidChangedFocus(_ value: CGPoint, mode: AVCaptureDevice.FocusMode, with manager: SYCameraManager) {
+        
+    }
+    
+    /// 相机曝光值调整改变
+    /// - Parameters:
+    ///   - value: 曝光值
+    ///   - mode: 模式
+    ///   - manager: SYCameraManager
+    func cameraDidChangedExposure(_ value: CGPoint, mode: AVCaptureDevice.ExposureMode, with manager: SYCameraManager) {
+        
+    }
+}
 ```
 
+### 调整焦距
+调整焦距的过程：
+```objc
+@objc private func handlePinchEvent(_ sender: UIPinchGestureRecognizer) {
+
+    if cameraManager.result != .success {
+        return
+    }
+
+    let scale = sender.scale
+    currentZoom = scale;
+    cameraManager.setZoom(currentZoom, withAnimated: true)
+}
+```
+调整焦距的结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机焦距调整改变
+    /// - Parameters:
+    ///   - value: 焦距
+    ///   - manager: SYCameraManager
+    func cameraDidChangedZoom(_ value: CGFloat, with manager: SYCameraManager) {
+    
+    }
+}
+```
+
+### 拍照
+
+拍照的流程：
+```swift
+@objc private func takePhoto() {
+    if cameraManager.result != .success {
+        return
+    }
+    cameraManager.takePhoto()
+}
+```
+
+拍照的结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机拍照结果
+    /// - Parameters:
+    ///   - image: 图片
+    ///   - metaData: 摘要
+    ///   - manager: SYCameraManager
+    ///   - error: 错误
+    func cameraDidFinishProcessingPhoto(_ image: UIImage?, withMetaData metaData: [AnyHashable : Any]?, with manager: SYCameraManager, withError error: Error?) {
+        
+    }
+}
+```
+### 切换录制模式
+
+切换录制模式流程：
+```swift
+@objc private func changeCameraMode(_ control: UISegmentedControl) {
+    if cameraManager.result != .success {
+        return
+    }
+    if control.selectedSegmentIndex == 0 {
+        cameraManager.changeCameraMode(.photoMode, withSessionPreset: nil)
+    } else if control.selectedSegmentIndex == 1 {
+        cameraManager.changeCameraMode(.videoMode, withSessionPreset: nil)
+    }
+}
+```
+模式切换的结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机模式改变
+    /// - Parameters:
+    ///   - mode: 模式
+    ///   - manager: SYCameraManager
+    func cameraDidChange(_ mode: SYCameraMode, with manager: SYCameraManager) {
+    
+    }
+}
+```
+
+## 开始录制和结束录制
+
+开始录制和结束录制如下代码所示：
+```swift
+@objc private func handleRecordEvent(_ button: UIButton) {
+    if cameraManager.result != .success {
+        return
+    }
+    if recordMode == .recordNormal {
+        cameraManager.startRecord()
+    } else {
+        cameraManager.stopRecord()
+    }
+}
+```
+
+录制状态和录制结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    
+    /// 相机录制结果
+    /// - Parameters:
+    ///   - outputURL: 保存路径
+    ///   - manager: SYCameraManager
+    ///   - error: error
+    func cameraDidFinishProcessingVideo(_ outputURL: URL?, with manager: SYCameraManager, withError error: Error?) {
+        
+    }
+    
+    /// 相机录制状态改变
+    /// - Parameters:
+    ///   - status: 录制状态
+    ///   - manager: SYCameraManager
+    func cameraRecordStatusDidChange(_ status: SYRecordStatus, with manager: SYCameraManager) {
+        
+    }    
+}
+```
+### 构建双摄相机
+
+双摄相机构建前，需要先判断当前设备和系统是否支持：
+```swift
+
+if SYCameraManager.isMultiCamSupported() {
+    // 开始构建双摄相机 
+}
+
+```
+
+双摄相机构建流程：
+```swift
+let config = SYCameraConfig()
+config.type = .dualDevice  // 双摄模式  
+config.mode = .photoMode  // 拍照模式
+cameraManager.requestCamera(with: config) { [weak self](ret) in
+    guard let `self` = self else { return }
+    if ret == .success {
+        // 设置 delegate
+        self.cameraManager.delegate = self 
+        // 将预览视图添加到 View 上
+        self.cameraManager.addPreview(to: self.previewView) 
+        // 启动相机
+        self.cameraManager.startCapture()  
+    }
+}
+```
+
+构建和启动结果会通过 SYCameraManagerDelegate 方法回调：
+```swift
+extension ViewController: SYCameraManagerDelegate {
+    /// 相机配置结果
+    /// - Parameters:
+    ///   - result: SYSessionSetupResult
+    ///   - manager: SYCameraManager
+    func cameraSessionSetupResult(_ result: SYSessionSetupResult, with manager: SYCameraManager) {
+        
+    }
+    
+    /// 相机已启动
+    /// - Parameter manager: SYCameraManager
+    func cameraDidStarted(_ manager: SYCameraManager) {
+        
+    }
+    
+    /// 相机已停止
+    /// - Parameter manager: SYCameraManager
+    func cameraDidStoped(_ manager: SYCameraManager) {
+        
+    }    
+}
+
+```
 
 ## Author
 
